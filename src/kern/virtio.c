@@ -7,7 +7,7 @@
 #include "string.h"
 #include "intr.h"
 #include "error.h"
-
+#include "vioblk.c"
 #include <stddef.h>
 
 #define VIRTIO_MAGIC 0x74726976
@@ -22,9 +22,9 @@ void virtio_attach(void * mmio_base, int irqno) {
         //           viocons.c
         volatile struct virtio_mmio_regs * regs, int irqno);
     
-    extern void vioblk_attach (
-        //           vioblk.c
-        volatile struct virtio_mmio_regs * regs, int irqno);
+    // extern void vioblk_attach (
+    //     //           vioblk.c
+    //     volatile struct virtio_mmio_regs * regs, int irqno);
 
     if (regs->magic_value != VIRTIO_MAGIC) {
         kprintf("%p: No virtio magic number found\n", mmio_base);

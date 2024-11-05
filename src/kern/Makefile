@@ -17,14 +17,34 @@ CORE_OBJS = \
 	device.o \
 	virtio.o \
 	vioblk.o \
-	console.o
+	console.o \
+	uart.o \
+	elf.o 
 	# Add the names of new objects here
+
+CORE_OBJS_VI_TEST = \
+	start.o \
+	halt.o \
+	string.o \
+	trapasm.o \
+	intr.o \
+	io.o \
+	device.o \
+	virtio.o \
+	vioblk.o \
+	console.o \
+	thread.o \
+	thrasm.o \
+	plic.o \
+	timer.o \
+	ezheap.o \
+	uart.o
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-asynchronous-unwind-tables
-CFLAGS += -I. # -DDEBUG -DTRACE
+CFLAGS += -I.  -DDEBUG #-DTRACE
 
 QEMUOPTS = -global virtio-mmio.force-legacy=false
 QEMUOPTS += -machine virt -bios none -kernel $< -m 8M -nographic
@@ -49,6 +69,15 @@ run-shell: shell.elf
 	$(QEMU) $(QEMUOPTS)
 
 debug-shell: shell.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+test.elf: $(CORE_OBJS_VI_TEST) main_tests.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-test: test.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug-test: test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 # You might want to add more here
