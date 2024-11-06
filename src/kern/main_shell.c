@@ -30,6 +30,9 @@ extern char _kimg_end[];
 #define VIRT1_IOBASE 0x10002000
 #define VIRT0_IRQNO 1
 
+extern char _companion_f_start[];
+extern char _companion_f_end[];
+
 static void shell_main(struct io_intf * termio);
 
 void main(void) {
@@ -42,7 +45,7 @@ void main(void) {
     console_init();
     intr_init();
     devmgr_init();
-    thrmgr_init();
+    thread_init();
     timer_init();
 
     heap_init(_kimg_end, (void*)USER_START);
@@ -105,6 +108,7 @@ void shell_main(struct io_intf * termio_raw) {
     for (;;) {
         ioprintf(termio, "CMD> ");
         ioterm_getsn(&ioterm, cmdbuf, sizeof(cmdbuf));
+        console_printf("adgaufhawe: %s\n", cmdbuf);
 
         if (cmdbuf[0] == '\0')
             continue;

@@ -4,6 +4,7 @@
 #include "io.h"
 #include "string.h"
 #include "error.h"
+#include "console.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,7 +35,7 @@ long ioread_full(struct io_intf * io, void * buf, unsigned long bufsz) {
 
     if (io->ops->read == NULL)
         return -ENOTSUP;
-
+    
     while (acc < bufsz) {
         cnt = io->ops->read(io, buf+acc, bufsz-acc);
         if (cnt < 0)
@@ -72,8 +73,70 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
-    //           Implement me!
+    // Implement me!
+    static const struct io_ops ct_ops = {
+        .close = iolit_close,
+        .read = iolit_read,
+        .write = iolit_write,
+        .ctl = iolit_ctl
+    };
+    lit->io_intf.ops = &ct_ops;
+    lit->buf = buf;
+    lit->size = size;
+    lit->pos = 0;
+    
     return &lit->io_intf;
+}
+
+void iolit_close(struct io_intf * io) {
+    return;
+}
+
+long iolit_write(struct io_intf * io, const void * buf, unsigned long bufsz) {
+    struct io_lit * lit = io;
+    if (lit->size - lit->pos < bufsz) {
+        return -EFILESYS;
+    }
+
+    memcpy(lit->buf + lit->pos, buf, bufsz);
+
+    return bufsz;
+}
+
+long iolit_read(struct io_intf * io, void * buf, unsigned long bufsz) {
+    //iolit read enter
+    struct io_lit * lit = io;
+
+    if (lit->size - lit->pos < bufsz) {
+        return -EFILESYS;
+    }
+    memcpy(buf, lit->buf + lit->pos, bufsz);
+    //read success
+    return bufsz;
+}
+
+int iolit_ctl(struct io_intf* io, int cmd, void* arg) {
+    struct io_lit* lit = io;
+    switch (cmd)
+    {
+    case IOCTL_GETBLKSZ:
+        return FS_BLKSZ;
+        break;
+    case IOCTL_GETLEN:
+        *(int*)arg = lit->size;
+        return *(int*)arg;
+        break;
+    case IOCTL_GETPOS:
+        *(int*)arg = lit->pos;
+        return *(int*)arg;
+        break;
+    case IOCTL_SETPOS:
+        lit->pos = *(int* )arg;
+        return *(int* )arg;
+        break;
+    default:
+        break;
+    }
 }
 
 //           I/O term provides three features:

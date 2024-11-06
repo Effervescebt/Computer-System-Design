@@ -15,11 +15,17 @@ CORE_OBJS = \
 	intr.o \
 	io.o \
 	device.o \
-	virtio.o \
-	vioblk.o \
+	plic.o \
+	timer.o \
+	thread.o \
 	console.o \
+	thrasm.o \
+	kfs.o \
 	uart.o \
-	elf.o 
+	ezheap.o \
+	elf.o \
+	virtio.o \
+	vioblk.o
 	# Add the names of new objects here
 
 CORE_OBJS_VI_TEST = \
@@ -30,21 +36,23 @@ CORE_OBJS_VI_TEST = \
 	intr.o \
 	io.o \
 	device.o \
-	virtio.o \
-	vioblk.o \
-	console.o \
-	thread.o \
-	thrasm.o \
 	plic.o \
 	timer.o \
+	thread.o \
+	console.o \
+	thrasm.o \
+	kfs.o \
+	uart.o \
 	ezheap.o \
-	uart.o
+	elf.o \
+	virtio.o \
+	vioblk.o
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-asynchronous-unwind-tables
-CFLAGS += -I.  -DDEBUG #-DTRACE
+CFLAGS += -I.  -DDEBUG -DTRACE
 
 QEMUOPTS = -global virtio-mmio.force-legacy=false
 QEMUOPTS += -machine virt -bios none -kernel $< -m 8M -nographic

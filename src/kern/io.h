@@ -88,6 +88,8 @@ struct io_term {
 //           arg is pointer to uint32_t
 #define IOCTL_GETBLKSZ      6
 
+#define FS_BLKSZ 4096
+
 //           EXPORTED FUNCTION DECLARATIONS
 //          
 
@@ -186,6 +188,22 @@ iovprintf(struct io_intf * io, const char * fmt, va_list ap);
 extern struct io_intf *
 __attribute__ ((nonnull(1,2)))
 iolit_init(struct io_lit * lit, void * buf, size_t size);
+
+extern void
+__attribute__ ((nonnull(1)))
+iolit_close(struct io_intf * io);
+
+extern long
+__attribute__ ((nonnull(1,2)))
+iolit_write(struct io_intf * io, const void * buf, unsigned long bufsz);
+
+extern long
+__attribute__ ((nonnull(1,2)))
+iolit_read(struct io_intf * io, void * buf, unsigned long bufsz);
+
+extern int
+__attribute__ ((nonnull(1)))
+iolit_ctl(struct io_intf * io, int cmd, void * arg);
 
 //           An io_term object is a wrapper around a "raw" I/O object. It provides newline
 //           conversion and interactive line-editing for string input.
