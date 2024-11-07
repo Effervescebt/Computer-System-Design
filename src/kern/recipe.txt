@@ -1,0 +1,31 @@
+Hi, this is the recipe for elf.c
+
+Argument: 1. I/O interface
+          2. a I/O function pointer pointing to where we should fill with the updated entry pointer
+
+Goal: We take I/O interface as argument, and we should be able to execute the program with this function
+
+Workflow: 1. check the validity of elf header
+        2. iterate the program headers
+        3. check the type of program header
+        4. check address range of the program header
+        5. read the program content and set the entry point so that we can execute the program
+
+Background knowledge: 
+        1. Notice that elf_header and program_header both have their unique structures.
+            Definition can be found in official manual
+        2. Firstly, at the beginning (0 offset of the file) is our elf header.
+            elf_header: contain metadata of the file and contain info about program headers (e.g. how many of them? And their offset)
+        3. run this in user: "readelf -h hello.o". You can see what we need to check validity of the elf header
+            here is my checklist: "magic, class, data, ABI, Machine"
+        4. Then we go to next program header. This is specific program info that we need.
+            Please pay attention that we first check program type(p_type)
+            Then we shall check address range of the program header
+        5. Lastly, we move to the read content to entry point so that we can start the program
+
+Notice:
+    1. Please pay attention to e_machine. The code for RISC-V is found on the Internet. 
+        THe official manual provided is too old so it is not included.
+    2. Be sure to check p_type before checking address range
+    3. If the function is incorrect, you may see different error codes made by me. Hopefully it is not too messy :)
+        And it may lead to incorrect entry point

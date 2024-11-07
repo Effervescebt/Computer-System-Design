@@ -52,7 +52,7 @@ int fs_mount(struct io_intf* io) {
  * -> 0 or Error Code
  */
 int fs_open(const char* name, struct io_intf** io) {
-    uint32_t requested_inode = 0;
+    uint32_t requested_inode = -1;
     uint64_t inode_position = 0;
     // find the inode of the file to open
     for (int i = 0; i < DIR_ENTRY_CT; i++) {
@@ -60,6 +60,9 @@ int fs_open(const char* name, struct io_intf** io) {
             requested_inode = super_block.dir_entries[i].inode;
             break;
         }
+    }
+    if (requested_inode == -1) {
+        return -ENOENT;
     }
     
     // calculate the inode block location in file system memory
@@ -112,8 +115,9 @@ int fs_open(const char* name, struct io_intf** io) {
 void fs_close(struct io_intf* io) {
     // loop to find the file to close
     for (int i = 0; i < MAX_OPEN_FILE_CT; i++) {
-        if (memcmp(opened_files.current_opened_files[i].io_intf, io, POINTER_SZ)) {
+        if (opened_files.current_opened_files[i].io_intf == io) {
             opened_files.current_opened_files[i].usage_flag = UNUSED;
+            break;
         }
     }
 }
@@ -251,11 +255,15 @@ int fs_ioctl(struct io_intf* io, int cmd, void* arg) {
 long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     // executing fs_write
     uint64_t write_position = ioctl(io, IOCTL_GETPOS, &write_position);
-    uint64_t inode;
+    uint64_t inode = -1;
     for (int i = 0; i < MAX_OPEN_FILE_CT; i++) {
         if (opened_files.current_opened_files[i].io_intf == io) {
             inode = opened_files.current_opened_files[i].inode;
+            break;
         }
+    }
+    if (inode == -1) {
+        return -EFILESYS;
     }
 
     // read the inode blocks to get data block addr
@@ -266,9 +274,12 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     ioread_full(system_io, file_struct, FS_BLKSZ);
 
     // determine how many cycles to go through, and the remainder bytes to write after block-size writes have finished
-    size_t leading = write_position % FS_BLKSZ; // leading is non-zero when writing_position is no multiple of FS_BLKSZ (that current write start position in middle of a data block)
-    size_t block_passed = write_position / FS_BLKSZ; // block_passed records the data blocks that were completely passed (fully read/write)
-    size_t leading_compensation = FS_BLKSZ - leading; // leading_compensation is non-zero when leading is non-zero (FS_BLKSZ - leading)
+    size_t leading = write_position % FS_BLKSZ; 
+    // leading is non-zero when writing_position is no multiple of FS_BLKSZ (that current write start position in middle of a data block)
+    size_t block_passed = write_position / FS_BLKSZ; 
+    // block_passed records the data blocks that were completely passed (fully read/write)
+    size_t leading_compensation = FS_BLKSZ - leading; 
+    // leading_compensation is non-zero when leading is non-zero (FS_BLKSZ - leading)
     if (leading_compensation == FS_BLKSZ) { // leading_compensation will be set to 0 if leading is 0
         leading_compensation = 0;
     }
@@ -282,7 +293,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     }
 
     // calculate the buffer start in file system memory
-    buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + write_position;
+    buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     // write_buffer_idx is an aux parameter to determine which location in buf to write into file system memory
     size_t write_buffer_idx = 0;
 
@@ -334,14 +345,16 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
  * -> 0
  */
 long fs_read(struct io_intf* io, void* buf, unsigned long n) {
-    console_printf("entering fs read, reading %d\n", n);
     uint64_t read_position = fs_ioctl(io, IOCTL_GETPOS, &read_position);
-    uint64_t inode;
+    uint64_t inode = -1;
     for (int i = 0; i < MAX_OPEN_FILE_CT; i++) {
         if (opened_files.current_opened_files[i].io_intf == io) {
             inode = opened_files.current_opened_files[i].inode;
             break;
         }
+    }
+    if (inode == -1) {
+        return -EFILESYS;
     }
 
     // read the inode blocks to get data block addr
@@ -351,39 +364,39 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     // read the file_struct to perform write
     struct inode_t * file_struct = kmalloc(sizeof(struct inode_t));
     ioread_full(system_io, file_struct, FS_BLKSZ);
-    console_printf("file struct size %d file pos %d\n", file_struct->byte_len, read_position);
     if (read_position + n > file_struct->byte_len) {
         return -EFILESYS;
     }
 
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished
-    size_t leading = read_position % FS_BLKSZ; // leading is non-zero when reading_position is no multiple of FS_BLKSZ (that current read start position in middle of a data block)
-    size_t block_passed = read_position / FS_BLKSZ; // block_passed records the data blocks that were completely passed (fully read/write)
-    size_t leading_compensation = FS_BLKSZ - leading; // leading_compensation is non-zero when leading is non-zero (FS_BLKSZ - leading)
+    size_t leading = read_position % FS_BLKSZ; 
+    // leading is non-zero when reading_position is no multiple of FS_BLKSZ (that current read start position in middle of a data block)
+    size_t block_passed = read_position / FS_BLKSZ; 
+    // block_passed records the data blocks that were completely passed (fully read/write)
+    size_t leading_compensation = FS_BLKSZ - leading; 
+    // leading_compensation is non-zero when leading is non-zero (FS_BLKSZ - leading)
     if (leading_compensation == FS_BLKSZ) { // leading_compensation will be set to 0 if leading is 0
         leading_compensation = 0;
     }
     // cycle and remainder both have potential of going negative, so they need to be int for negative conditions
     size_t cycle = (n - leading_compensation) / FS_BLKSZ;
     size_t remainder = (n - leading_compensation) % FS_BLKSZ;
-    console_printf("leadig %d, block passed %d, leading compensation %d, cycle %d, remainder %d\n", leading, block_passed, leading_compensation, cycle, remainder);
     
     if (n < leading_compensation) {
         leading_compensation = 0;
         remainder = n;
         cycle = 0;
     }
-    console_printf("leadig %d, block passed %d, leading compensation %d, cycle %d, remainder %d\n", leading, block_passed, leading_compensation, cycle, remainder);
     // calculate the buffer start in file system memory
-    buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + read_position;
+    buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
 
     // read_buffer_idx is an aux parameter to determine which location in buf to read into file system memory
     size_t read_buffer_idx = 0;
     for (int i = block_passed; i < DATA_BLOCK_NUM; i++) {
+
         // if compensation not zero, we have to start reading in the middle of a previous read/write but not finished block
         if (leading_compensation != 0) {
-            console_printf("reading leading bits\n");
             ioread_full(system_io, buf + read_buffer_idx, leading_compensation);
             read_buffer_idx += leading_compensation;
             leading_compensation = 0;
@@ -391,12 +404,10 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
             ioctl(system_io, IOCTL_SETPOS, &buffer_start);
         } else if (cycle <= 0) { // exit when cycles finished
             // use system_io to perform read (since it has the right to directly access file system memory)
-            console_printf("reading remainder bits\n");
             
             ioread_full(system_io, buf + read_buffer_idx, remainder);
             break;
         } else {
-            console_printf("reading loop block bits\n");
             // use system_io to perform read (since it has the right to directly access file system memory)
             ioread_full(system_io, buf + read_buffer_idx, FS_BLKSZ);
             // update reading and receiving positions

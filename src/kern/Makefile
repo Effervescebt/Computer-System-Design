@@ -48,6 +48,44 @@ CORE_OBJS_VI_TEST = \
 	virtio.o \
 	vioblk.o
 
+CORE_ELF_OBJS = \
+	start.o \
+	halt.o \
+	string.o \
+	trapasm.o \
+	intr.o \
+	io.o \
+	device.o \
+	console.o \
+	thrasm.o \
+	uart.o \
+	plic.o \
+	timer.o \
+	thread.o \
+	elf.o \
+	ezheap.o \
+	companion.o
+
+CORE_FS_OBJS = \
+	start.o \
+	halt.o \
+	string.o \
+	trapasm.o \
+	intr.o \
+	io.o \
+	device.o \
+	plic.o \
+	timer.o \
+	thread.o \
+	console.o \
+	thrasm.o \
+	kfs.o \
+	uart.o \
+	ezheap.o \
+	elf.o \
+	vioblk.o \
+	virtio.o \
+
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -79,6 +117,7 @@ run-shell: shell.elf
 debug-shell: shell.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
+# test vioblk
 vioblk_test.elf: $(CORE_OBJS_VI_TEST) vioblk_test.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
@@ -87,6 +126,26 @@ run-vioblk_test: vioblk_test.elf
 
 debug-vioblk_test: vioblk_test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+# test elf_load
+test_elf.elf: $(CORE_ELF_OBJS) test_elf.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run_test_elf: test_elf.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug_test_elf: test_elf.elf
+	$(QEMU) $(QEMUOPTS) -s -S
+
+# test file system
+test_fs.elf: $(CORE_FS_OBJS) test_fs.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run_test_fs: test_fs.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug_test_fs: test_fs.elf
+	$(QEMU) $(QEMUOPTS) -s -S
 
 # You might want to add more here
 

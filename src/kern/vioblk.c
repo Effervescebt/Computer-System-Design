@@ -322,7 +322,6 @@ long vioblk_read (
     unsigned long bufsz)
 {
     //           FIXME your code here
-    console_printf("entering vioblk read\n");
     struct vioblk_device * dev = (void*)io -
         offsetof(struct vioblk_device, io_intf);
 
@@ -366,8 +365,6 @@ long vioblk_read (
         bufsz -= count;
         buf += count;
     }
-    //console_printf("returning from vioblk read\n");
-    //console_printf("pos: %d\n", dev->pos);
 
     return dev->pos - old_pos;
 }

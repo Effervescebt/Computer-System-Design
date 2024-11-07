@@ -195,8 +195,10 @@ void thread_init(void) {
     init_idle_thread();
     set_running_thread(&main_thread);
     thread_initialized = 1;
-    console_printf("%x\n", tlappend);
-    console_printf("%x\n", thread_state_name);
+    if (-1 == 1) {
+        console_printf("%x\n", tlappend);
+        console_printf("%x\n", thread_state_name);
+    }
 }
 
 int thread_spawn(const char * name, void (*start)(void *), void * arg) {

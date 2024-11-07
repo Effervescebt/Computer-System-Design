@@ -28,8 +28,6 @@ extern char _kimg_end[];
 
 #define VIOBLK_SECTOR_SIZE      512
 
-static void shell_main(struct io_intf * termio);
-
 void main(void) {
     struct io_intf * blkio;
     void * mmio_base;

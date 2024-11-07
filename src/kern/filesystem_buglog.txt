@@ -1,0 +1,47 @@
+Nov.4 1 fs_mount/fs_open
+1.Using big endian instead of little endian in kfs, modified all read buffer into provided struct to solve problem.
+    -> The iolit buffer stores data in such way: (suppose a file system with 1 inode, occupying only 1 data block), the input will be 1 0 0 0 1 0 0 0 1 0 0 0, in the little endian way.
+2.Didn't implement iolit_ctl, therefore not able to set position for io.
+3.Modification for fs_read ongoing, fs_write not yet taken place. Nov.3
+4.io associated with task array will have to use fs_ctl, while the rest system file io can use their paired io.
+
+Nov.3 fs_read/write (write not yet)
+mark as solved-> single input file, null terminating read
+mark as solved-> double input files, all null output
+    -> double case partially solved, didn't update inode during fs_open
+    -> double case solved, only single case still exist. Reason for double case was checking if data block is NULL, while the first data block is always 0(NULL)
+
+    -> single case solved, null chars caused by writing custom of console_printf, switch to console_putchar it shall work
+
+Nov.4 2 fs_write
+mark as solved-> write failure, changing the file bit_len
+    -> solved, iolit_write previously "lit->buf = memcpy(lit->buf + lit->pos, buf, bufsz);", probably causing some wrongly mem assignment. Fix by neglecting lit->buf =, no clear idea on exact issue.
+
+Nov.4 3 fs_read
+mark as solved-> large text read failure, truncating head characters, no idea where starting
+    -> solved by adding a read_buf_idx
+    example: passing fs_read(..., ..., 12288), fs_read supposed to deal with 3 data blocks inside its loop. Previous version (wrong version) does system_io read by passing buf, which in every loop only stores everything from start of buf.
+    The buf address also needs to be updated, after every read loop, increase by FS_BLKSZ.
+
+Nov.4 4 test_fs
+Illegal Operation occured
+mark as solved-> local buffer collides in memory with function
+
+Nov.4 5 fs_write/read
+mark as solved-> didn't consider discontinuous block memory.
+    -> solved by adding a "leading" which records the current file read/write position past a block(will be non-zero if the position at no multiple of 4096), a "leading_compensation" that holds the value of remaining bytes in this partially read
+    block (4096 - leading, and will be set to 0 if leading is also 0), a "block_passed" (file position / FS_BLKSZ) that holds the blocks read till now
+
+Nov.5 fs_write/read
+mark as solved-> write & read not returning successful write/read size
+mark as solved-> memory collide when switching fs_read/write/ctl to io_read/write/control; together answered Nov.4 2 left behind question
+    -> reason are for 1. heap_init called twice, once in mount and the other in test_fs
+    -> 2. ctl didn't utilize aux pointer for every possible cmd, should be used as return value so that reading doesn't cause memory error (Nov.4 issue 2)
+
+Nov.6 ???
+mark as solved-> thread assertion fault
+    -> caused by writing beyond bounds, original read_position should be changed to leading (took whole day, nobody could image it be caused by fs_read/write, even TAs)
+mark as solved-> store access fault at very end
+    -> wrongly ultilizing memcmp, changed to '=='
+
+Finished, the EMPEROR PROTECTS.

@@ -1,0 +1,23 @@
+1. Nov 4th elf_load (program header loop)
+    mark as solved->not cover all the program header, so the program can not executed normally.
+                    Fix by i * elf_header.e_phentsize to update the addr
+
+2. Nov 4th elf_load (fs_read failed)
+    mark as solved -> return error code indicating undefined of fs_read
+                    Fix by using ioread_full instead
+
+3. Nov 5th test_elf.c (undefined)
+    mark as solved -> multiple error of undefined
+                    Fix by adding all files from MP2 
+
+4. Nov 5th elf_load (io_read failed)
+    mark as solved -> return error code indicating failure in reading
+                    Fix by adjusting test_elf.c using io_read 
+
+5. Nov 5th elf_load (store access fault)
+    mark as solved -> have store access fault when testing
+                    Fix by using struct io_lit iolit instead of struct io_lit* iolit
+
+6. Nov 3rd elf_load (load access fault)
+    mark as solved -> have load access fault
+                    Fix by defining elf_phdr as Elf64_Phdr instead of Elf64_Phdr*
