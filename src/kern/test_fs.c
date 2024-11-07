@@ -56,6 +56,60 @@ void main() {
     fs_open("HorusHeresyChOne.txt", &horus_io);
     fs_open("HorusHeresyChTwo.txt", &horus_io_ch2);
 
+    char * gold_read_emperor_protects = (char *)kmalloc(351);
+    gold_read_emperor_protects = "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects.";
+    char * gold_read_praise_emperor = (char *)kmalloc(339);
+    gold_read_praise_emperor = "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor.";
+    char * gold_read_modify = (char *)kmalloc(351);
+    gold_read_modify = "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "Praise The Emperor."
+                                    "peror Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects."
+                                    "The Emperor Protects.";
+
     if (honor_io == hellow_io) {
         //console_printf("wrong, same io\n");
     } else {
@@ -75,6 +129,19 @@ void main() {
     //console_puts(read_buf);
     console_printf("\n");
     console_printf("\n");
+    console_printf("CHECKING READING CORRECTNESS\n");
+    int correct = 1;
+    for (int i = 0; i < 351; i++) {
+        if (*(gold_read_emperor_protects) != (*(read_buf))) {
+            correct = 0;
+            break;
+        }
+    }
+    if (correct) {
+        console_printf("GENERAL READ SUCCESS\n");
+    }
+    console_printf("\n");
+    console_printf("\n");
     fs_read(honor_io, read_buf_honor1, 339);
     console_printf("File PRAISE EMPEROR\n");
     console_printf("\n");
@@ -83,16 +150,38 @@ void main() {
     }
     console_printf("\n");
     console_printf("\n");
-    
+    console_printf("CHECKING READING CORRECTNESS\n");
+    correct = 1;
+    for (int i = 0; i < 339; i++) {
+        if (*(read_buf_honor1) != *(gold_read_praise_emperor)) {
+            correct = 0;
+            break;
+        }
+    }
+    console_printf("GENERAL READ SUCCESS\n");
+    console_printf("\n");
+    console_printf("\n");
     //console_printf("file test setting position\n");
     ioctl(hellow_io, IOCTL_SETPOS, &start_pos);
     iowrite(hellow_io, read_buf_honor1, 160);
     console_printf("SHORT FILE WRITE TEST\n");
+    console_printf("\n");
     ioctl(hellow_io, IOCTL_SETPOS, &start_pos);
     ioread_full(hellow_io, read_buf2, 351);
     for (int i = 0; i < 351; i++) {
         console_putchar(*(read_buf2 + i));
     }
+    console_printf("\n");
+    console_printf("\n");
+    console_printf("CHECKING WRITING CORRECTNESS\n");
+    correct = 1;
+    for (int i = 0; i < 351; i++) {
+        if (*(read_buf2) != *(gold_read_modify)) {
+            correct = 0;
+            break;
+        }
+    }
+    console_printf("GENERAL WRITE SUCCESS\n");
     console_printf("\n");
     console_printf("\n");
     //console_printf("address of buff %x %x \n", read_buf, read_buf_honor1);
@@ -105,6 +194,7 @@ void main() {
     }
     console_printf("\n");
     console_printf("\n");
+    console_printf("\n");
     console_printf("LONG PARAGRAPH CHECK II (CROSS BLOCK)\n");
     ioseek(horus_io, 0);
     ioread_full(horus_io, read_buf_horus_split_read, 1500);
@@ -115,6 +205,7 @@ void main() {
     for (int i = 0; i < 10000; i++) {
         console_putchar(*(read_buf_horus_split_read + i));
     }
+    console_printf("\n");
     console_printf("\n");
     console_printf("\n");
     console_printf("LONG PARAGRAPH CHECK III\n");
