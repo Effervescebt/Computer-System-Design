@@ -195,6 +195,8 @@ void thread_init(void) {
     init_idle_thread();
     set_running_thread(&main_thread);
     thread_initialized = 1;
+    console_printf("%x\n", tlappend);
+    console_printf("%x\n", thread_state_name);
 }
 
 int thread_spawn(const char * name, void (*start)(void *), void * arg) {
@@ -333,7 +335,6 @@ void condition_init(struct condition * cond, const char * name) {
 
 void condition_wait(struct condition * cond) {
     int saved_intr_state;
-
     trace("%s(cond=<%s>) in %s", __func__, cond->name, CURTHR->name);
 
     assert(CURTHR->state == THREAD_RUNNING);
@@ -347,7 +348,6 @@ void condition_wait(struct condition * cond) {
     tlinsert(&cond->wait_list, CURTHR);
 
     saved_intr_state = intr_enable();
-
     suspend_self();
 
     intr_restore(saved_intr_state);
@@ -438,15 +438,18 @@ void suspend_self(void) {
     // FIXME your code here
 
     // check if the current thread is still runnable
+    int s = intr_disable();
     if (CURTHR->state == THREAD_RUNNING) {
         set_thread_state(CURTHR, THREAD_READY);
         tlinsert(&ready_list, CURTHR);
     }
-
+    
     // get the next thread
     struct thread* next = tlremove(&ready_list);
     set_thread_state(next, THREAD_RUNNING);
+    intr_restore(s);
     _thread_swtch(next);
+    
 }
 
 void tlclear(struct thread_list * list) {

@@ -75,9 +75,6 @@ typedef struct file_array{
     file_t current_opened_files[MAX_OPEN_FILE_CT];
 }__attribute((packed)) file_array;  
 
-static struct io_intf * system_io;
-static boot_block_t super_block;
-static file_array opened_files;
 extern char fs_initialized;
 
 extern void fs_init(void);

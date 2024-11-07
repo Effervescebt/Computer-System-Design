@@ -93,7 +93,7 @@ void iolit_close(struct io_intf * io) {
 }
 
 long iolit_write(struct io_intf * io, const void * buf, unsigned long bufsz) {
-    struct io_lit * lit = io;
+    struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
     if (lit->size - lit->pos < bufsz) {
         return -EFILESYS;
     }
@@ -105,7 +105,7 @@ long iolit_write(struct io_intf * io, const void * buf, unsigned long bufsz) {
 
 long iolit_read(struct io_intf * io, void * buf, unsigned long bufsz) {
     //iolit read enter
-    struct io_lit * lit = io;
+    struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
 
     if (lit->size - lit->pos < bufsz) {
         return -EFILESYS;
@@ -116,7 +116,7 @@ long iolit_read(struct io_intf * io, void * buf, unsigned long bufsz) {
 }
 
 int iolit_ctl(struct io_intf* io, int cmd, void* arg) {
-    struct io_lit* lit = io;
+    struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
     switch (cmd)
     {
     case IOCTL_GETBLKSZ:
@@ -135,6 +135,7 @@ int iolit_ctl(struct io_intf* io, int cmd, void* arg) {
         return *(int* )arg;
         break;
     default:
+        return -EFILESYS;
         break;
     }
 }

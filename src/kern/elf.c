@@ -7,6 +7,17 @@
 #include "intr.h"
 // Now define some global variables 
 #define EI_NIDENT 16
+    // Here are error codes
+#define READ_FAILURE 1
+#define DATA_SHORTAGE 2
+#define MAGIC 3
+#define CLASS 4
+#define LITTLE_ENDIAN 5
+#define ABI 6
+#define MACHINE 7
+#define PROG_READ_FAILURE 8
+#define PROG_ADDR 9
+#define PROG_SEC_READ 10
 
     // These global variables are required for magic number check
 #define EI_MAG0 0
@@ -99,7 +110,7 @@ Then we read the contents within individual program header and set the entry poi
 
 @return: int: 0 if successful, negative values if an error occurs
 */
-elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
+int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     // We should first check the validity of the passed ELF file
     // validating checklist: Magic, Class, Data, ABI, Machine
 
@@ -108,62 +119,51 @@ elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
     Elf64_Ehdr elf_header; // Initialize the elf header
     // char* buffer = NULL; // Initialize the empty buffer
     console_printf("elf header initialize successfully\n");
-    console_printf("elf header size: %d\n", sizeof(Elf64_Ehdr));
-    long result = ioread_full(io, (void *)&elf_header, sizeof(Elf64_Ehdr));
-    console_printf("result = %d\n", result);
-    char *buffer = elf_header.e_ident;
+    long result = ioread_full(io, &elf_header, sizeof(Elf64_Ehdr));
+    console_printf("Result of ioread: %ld\n", result);
+    unsigned char *buffer = elf_header.e_ident;
+    console_printf("checkpoint 0 reached, Entry point address: %p\n",(void *)elf_header.e_entry);
     // Case 1: Failure in reading
-    if (result < 0 ){
-        // -1 indicates failure in data reading
-        //console_printf("ERROR! Reading Failed");
-        return -1;
+    if (result < 0 || buffer == NULL){
+        // failure in data reading
+        return -READ_FAILURE;
     }
-    if (buffer == NULL){
-        // -1 indicates failure in data reading
-        //console_printf("ERROR! Reading Failed");
-        return -0.5;
-    }
-    // Case 2: insufficient data
+    //Case 2: insufficient data
     if (result < sizeof(Elf64_Ehdr)){
-        // -2 indicates insufficient read data
-        //console_printf("ERROR! Insufficient Data");
-        return -2;
+        // insufficient read data
+        return -DATA_SHORTAGE;
     }
 
     // Case 3: magic check
     if (buffer[EI_MAG0] != magic_numb_1 || buffer[EI_MAG1] != magic_numb_2 ||
         buffer[EI_MAG2] != magic_numb_3 || buffer[EI_MAG3] != magic_numb_4){
-            // -3 indicates failure in magic check
-            //console_printf("ERROR! Incorrect Check");
-            return -3;
+            // failure in magic check
+            return -MAGIC;
         }
 
     // Case 4: class check
     if (buffer[EI_CLASS] != ELF64){
-        // -4 indicates incorrect 64-bit format
-        //console_printf("ERROR! Incorrect Class");
-        return -4;
+        // incorrect 64-bit format
+        return -CLASS;
     }
 
     // Case 5: data check
     if(buffer[EI_DATA] != EI_ENDIAN){
         // -5 indicates incorrect endian (should be little endian)
         //console_printf("ERROR! Not Little Endian");
-        return -5;
+        return -LITTLE_ENDIAN;
     }
 
     // Case 6: ABI check
     if (buffer[EI_ABI] != System_V){
-        // -6 indicates incorrect ABI
-        //console_printf("ERROR! Incorrect System");
-        return -6;
+        // incorrect ABI
+        return -ABI;
     }
 
     // Case 7: machine check
     if(elf_header.e_machine != RISCV){
-        // -7 indicates incorrect machine
-        //console_printf("ERROR! Incorrect Machine");
-        return -7;
+        // incorrect machine
+        return -MACHINE;
     }
     // Now we have reached the end of valid check (at least I think so)
     // Next step would be processing the program headers
@@ -178,16 +178,15 @@ elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         // Read data into phdr
         long result_2 = ioread_full(io, (void *)&elf_phdr, sizeof(Elf64_Phdr));
         if (result_2 < 0){
-            //console_printf("ERROR! read failure in program header");
-            return -10;
+            // read failure in program header
+            return -PROG_READ_FAILURE;
         }
         // check p_type here given we only load PY_LOAD
         if(elf_phdr.p_type == PT_LOAD){
             // check address 
             if (elf_phdr.p_paddr < addr_lower_bound || elf_phdr.p_vaddr > addr_upper_bound){
-                // -8 indicates invalid program header address
-                //console_printf("ERROR! Invalid Program Header Address");
-                return -8;
+                // invalid program header address
+                return -PROG_ADDR;
             }
             // Now the address is within valid range
             // First we get position
@@ -196,12 +195,14 @@ elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
             //fs_ioctl(io, IOCTL_SETPOS, (void *)elf_phdr.p_offset);
             long prog_result = ioread_full(io, (void *)elf_phdr.p_vaddr, elf_phdr.p_filesz);
             if (prog_result < elf_phdr.p_filesz){
-                // -9 indicates the failure in program seg load
-                return -9;
+                //  failure in program seg load
+                return -PROG_SEC_READ;
             }
         }
     }
     // Now we need to move read program seg to entry point
-    *entryptr = (void*)(struct io_intf*)elf_header.e_entry;    
+    console_printf("checkpoint 1 reached\n");
+    *entryptr = (void*)(struct io_intf*)elf_header.e_entry;   
+    console_printf("checkpoint 2 reached, Entry point address: %p \n", *entryptr);
     return 0;
 }

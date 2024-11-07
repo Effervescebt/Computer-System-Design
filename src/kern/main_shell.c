@@ -30,8 +30,6 @@ extern char _kimg_end[];
 #define VIRT1_IOBASE 0x10002000
 #define VIRT0_IRQNO 1
 
-extern char _companion_f_start[];
-extern char _companion_f_end[];
 
 static void shell_main(struct io_intf * termio);
 
@@ -87,7 +85,8 @@ void main(void) {
 
     if (result != 0)
         panic("Could not open ser1");
-    
+
+    //console_printf("enter shell_main\n");
     shell_main(termio);
 }
 
@@ -99,16 +98,16 @@ void shell_main(struct io_intf * termio_raw) {
     char cmdbuf[9];
     int tid;
     int result;
-
+    
     termio = ioterm_init(&ioterm, termio_raw);
 
     ioputs(termio, "Enter executable name or \"exit\" to exit");
     
-
+    //console_printf("enter loop\n");
     for (;;) {
         ioprintf(termio, "CMD> ");
         ioterm_getsn(&ioterm, cmdbuf, sizeof(cmdbuf));
-        console_printf("adgaufhawe: %s\n", cmdbuf);
+        //console_printf("adgaufhawe: %s\n", cmdbuf);
 
         if (cmdbuf[0] == '\0')
             continue;
@@ -129,8 +128,10 @@ void shell_main(struct io_intf * termio_raw) {
         debug("Calling elf_load(\"%s\")", cmdbuf);
 
         result = elf_load(exeio, &exe_entry);
-
+        kprintf("exe %p\n", *exe_entry);
+        //console_printf("result: %d\n", result);
         debug("elf_load(\"%s\") returned %d", cmdbuf, result);
+        //console_printf("pass elfload\n");
 
         if (result < 0) {
             ioprintf(termio, "%s: Error %d\n", -result);

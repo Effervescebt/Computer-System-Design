@@ -1,0 +1,18 @@
+11/4
+cannot open device
+solved -> cannot access device in open function
+Fix by passing dev as aux argument in device_register. 
+
+undefined reference / multiple definition of "vioblk_attach"
+solved -> cannot make file
+Fix by not including "vioblk.c" in test files. 
+
+11/5
+empty io_intf
+solved -> io_intf returned by vioblk_open empty
+Fix by setting up the io_intf for device. 
+
+11/6
+read empty char
+solved -> read successfully but empty content
+Fix by modifying Indirect descriptor. Change the flag of req_status instead of bufblk. 

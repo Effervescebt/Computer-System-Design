@@ -52,7 +52,7 @@ CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -fno-asynchronous-unwind-tables
-CFLAGS += -I.  -DDEBUG -DTRACE
+CFLAGS += -I. # -DDEBUG -DTRACE
 
 QEMUOPTS = -global virtio-mmio.force-legacy=false
 QEMUOPTS += -machine virt -bios none -kernel $< -m 8M -nographic
@@ -79,13 +79,13 @@ run-shell: shell.elf
 debug-shell: shell.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
-test.elf: $(CORE_OBJS_VI_TEST) main_tests.o companion.o
+vioblk_test.elf: $(CORE_OBJS_VI_TEST) vioblk_test.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
-run-test: test.elf
+run-vioblk_test: vioblk_test.elf
 	$(QEMU) $(QEMUOPTS)
 
-debug-test: test.elf
+debug-vioblk_test: vioblk_test.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 # You might want to add more here
