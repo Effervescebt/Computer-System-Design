@@ -11,5 +11,6 @@
 #define EIO         5
 #define EBADFMT     6
 #define ENOENT      7
+#define EFILESYS    8
 
 #endif // _ERROR_H_

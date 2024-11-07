@@ -70,16 +70,19 @@ long iowrite(struct io_intf * io, const void * buf, unsigned long n) {
 //           It should set up all fields within the io_lit struct so that I/O operations can be performed on the io_lit
 //           through the io_intf interface. This function should return a pointer to an io_intf object that can be used 
 //           to perform I/O operations on the device.
+// initializes iolit_init
 struct io_intf * iolit_init (
     struct io_lit * lit, void * buf, size_t size)
 {
     // Implement me!
+    // set up iolit interface ops for lit
     static const struct io_ops ct_ops = {
         .close = iolit_close,
         .read = iolit_read,
         .write = iolit_write,
         .ctl = iolit_ctl
     };
+    // set all iolit components
     lit->io_intf.ops = &ct_ops;
     lit->buf = buf;
     lit->size = size;
@@ -88,36 +91,59 @@ struct io_intf * iolit_init (
     return &lit->io_intf;
 }
 
+/*
+ * @brief close the iolit 
+ *
+ * does nothing
+ */
 void iolit_close(struct io_intf * io) {
     return;
 }
 
+/*
+ * @brief performs iolit write
+ *
+ * writes using memcp
+ */
 long iolit_write(struct io_intf * io, const void * buf, unsigned long bufsz) {
+    // io is the first element of lit, so it's address used to calculate lit's address
     struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
     if (lit->size - lit->pos < bufsz) {
         return -EFILESYS;
     }
 
+    // memcpy copies the contents required (length bufsz) from buffer to lit memory
     memcpy(lit->buf + lit->pos, buf, bufsz);
 
     return bufsz;
 }
 
+/*
+ * @brief performs iolit read
+ *
+ * reads using memcpy
+ */
 long iolit_read(struct io_intf * io, void * buf, unsigned long bufsz) {
-    //iolit read enter
+    // iolit read enter
+    // io is the first element of lit, so it's address used to calculate lit's address
     struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
 
     if (lit->size - lit->pos < bufsz) {
         return -EFILESYS;
     }
+    // memcpy the required contents into buffer
     memcpy(buf, lit->buf + lit->pos, bufsz);
     //read success
     return bufsz;
 }
 
+/*
+ * @brief other cmds
+ */
 int iolit_ctl(struct io_intf* io, int cmd, void* arg) {
+    // io is the first element of lit, so it's address used to calculate lit's address
     struct io_lit * lit = (void*)io - offsetof(struct io_lit, io_intf);
-    switch (cmd)
+    switch (cmd) // switch on cmd value, behaves as specified by the IOCTL control indexes
     {
     case IOCTL_GETBLKSZ:
         return FS_BLKSZ;
