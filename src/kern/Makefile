@@ -1,3 +1,5 @@
+# Based on xv6-riscv Makefile; see LICENSE.
+
 TOOLPREFIX=riscv64-unknown-elf-
 QEMU=qemu-system-riscv64
 
@@ -13,78 +15,20 @@ CORE_OBJS = \
 	string.o \
 	trapasm.o \
 	intr.o \
-	io.o \
-	device.o \
 	plic.o \
 	timer.o \
 	thread.o \
-	console.o \
 	thrasm.o \
-	kfs.o \
-	uart.o \
 	ezheap.o \
-	elf.o \
+	io.o \
+	device.o \
+	uart.o \
 	virtio.o \
-	vioblk.o
-	# Add the names of new objects here
-
-CORE_OBJS_VI_TEST = \
-	start.o \
-	halt.o \
-	string.o \
-	trapasm.o \
-	intr.o \
-	io.o \
-	device.o \
-	plic.o \
-	timer.o \
-	thread.o \
-	console.o \
-	thrasm.o \
-	kfs.o \
-	uart.o \
-	ezheap.o \
-	elf.o \
-	virtio.o \
-	vioblk.o
-
-CORE_ELF_OBJS = \
-	start.o \
-	halt.o \
-	string.o \
-	trapasm.o \
-	intr.o \
-	io.o \
-	device.o \
-	console.o \
-	thrasm.o \
-	uart.o \
-	plic.o \
-	timer.o \
-	thread.o \
-	elf.o \
-	ezheap.o \
-	companion.o
-
-CORE_FS_OBJS = \
-	start.o \
-	halt.o \
-	string.o \
-	trapasm.o \
-	intr.o \
-	io.o \
-	device.o \
-	plic.o \
-	timer.o \
-	thread.o \
-	console.o \
-	thrasm.o \
-	kfs.o \
-	uart.o \
-	ezheap.o \
-	elf.o \
 	vioblk.o \
-	virtio.o \
+	console.o \
+	excp.o \
+	memory.o
+	# Add more object files here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
@@ -106,55 +50,24 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
-all: shell.elf
+all: kernel.elf
 
-shell.elf: $(CORE_OBJS) main_shell.o companion.o
+kernel.elf: $(CORE_OBJS) main.o companion.o
 	$(LD) -T kernel.ld -o $@ $^
 
-run-shell: shell.elf
+run-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS)
 
-debug-shell: shell.elf
+debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-# test vioblk
-vioblk_test.elf: $(CORE_OBJS_VI_TEST) vioblk_test.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-run-vioblk_test: vioblk_test.elf
-	$(QEMU) $(QEMUOPTS)
-
-debug-vioblk_test: vioblk_test.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-# test elf_load
-test_elf.elf: $(CORE_ELF_OBJS) test_elf.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-run_test_elf: test_elf.elf
-	$(QEMU) $(QEMUOPTS)
-
-debug_test_elf: test_elf.elf
-	$(QEMU) $(QEMUOPTS) -s -S
-
-# test file system
-test_fs.elf: $(CORE_FS_OBJS) test_fs.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-run_test_fs: test_fs.elf
-	$(QEMU) $(QEMUOPTS)
-
-debug_test_fs: test_fs.elf
-	$(QEMU) $(QEMUOPTS) -s -S
-
-# You might want to add more here
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm
 	if [ -f companion.o.save ]; then mv companion.o.save companion.o; fi
 
+# This will load the trek file into your kernel memory, via kernel.ld
+# `mkcomp.sh`, as well as the documentation, contain discussion
 companion.o:
 	if [ -f ../user/trek ]; then sh ./mkcomp.sh ../user/trek; fi
 	if ! [ -f ../user/trek ]; then sh ./mkcomp.sh; fi
-
