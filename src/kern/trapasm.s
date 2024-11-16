@@ -153,24 +153,54 @@ _trap_entry_from_umode:
 
 
         # TODO: FIXME your code here
+        addi    sp, t6, -34*8   # allocate space for trap frame
+        sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
+        addi    t6, sp, 34*8    # save original sp
+        sd      t6, 2*8(sp)     #
+        sd      tp, 0*8(sp)     # x[0] used to save tp when in U mode
+        csrr    sp, sscratch    # sp points to thread_stack_anchor
+
+        save_gprs_except_t6_and_sp
+        save_sstatus_and_sepc
 
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.
 
         # TODO: FIXME your code here
+        csrw    utvec, _trap_entry_from_smode
+        call    trap_umode_cont
 
         # U mode handlers return here because the call instruction above places
         # this address in /ra/ before we jump to exception or trap handler.
-        # We're returning to U mode, so restore _smode_trap_entry_from_umode as
+        # We're returning to U mode, so restore _trap_entry_from_umode as
         # trap handler.
 
         # TODO: FIXME your code here
+        csrw    utvec, _trap_entry_from_umode
+
+        restore_sstatus_and_sepc
+        restore_gprs_except_t6_and_sp
+
+        ld      t6, 31*8(sp)
+        ld      sp, 2*8(sp)
+
+        sret
 
         # Execution of trap entry continues here. Jump to handlers.
 
 trap_umode_cont:
         
         # TODO: FIXME your code here
+        csrr    a0, scause      # a0 contains "exception code"
+        mv      a1, sp          # a1 contains trap frame pointer
+
+        bgez    a0, umode_excp_handler  # in excp.c
+
+        slli    a0, a0, 1               # clear msb
+        srli    a0, a0, 1               #
+
+        j       intr_handler            # in intr.c
+        
 
         .global _mmode_trap_entry
         .type   _mmode_trap_entry, @function
