@@ -55,9 +55,8 @@ void procmgr_init(void){
     memset(&main_proc, 0, sizeof(main_proc));
     // Initialize PID to 0
     main_proc.id = MAIN_PID;
-    // Set the ssociated thread id
+    // Set the associated thread id
     main_proc.tid = running_thread();
-    // TBD 1
     main_proc.mtag = memory_space_create(0);
     // Clean iotab
     for (int i = 0; i < PROCESS_IOMAX; i++){
@@ -136,4 +135,23 @@ int process_exec(struct io_intf * exeio){
 void process_exit(){
     // First get current process
     struct process* cur_prog = current_process();
+    // checklist of release: process memory space, I/O interface, associated kernel thread
+    if (!cur_prog){
+        panic("No current process exist");
+    }
+    // Release memory space
+    // TBD 4
+    memory_space_switch(cur_prog->mtag);
+    // Release I/O interfaces
+    for (int i = 0; i < NPROC; i++){
+        if (cur_prog->iotab[i]){
+            ioclose(cur_prog->iotab[i]);
+            cur_prog->iotab[i] == NULL;
+        }
+    }
+    // mark it empty in the process table
+    proctab[cur_prog->id] = NULL;
+    kfree(cur_prog);
+    // Exit the thread
+    thread_exit();
 }
