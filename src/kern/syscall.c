@@ -35,6 +35,13 @@ static int sysmsgout(const char *msg) {
 // Opens a device at the specified file descriptor and returns error code on failure.
 static int sysdevopen(int fd, const char *name, int instno) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * device_io = curproc->iotab[fd];
 
     if (device_io == NULL)
@@ -51,6 +58,13 @@ static int sysdevopen(int fd, const char *name, int instno) {
 // Opens a file at the specified file descriptor and returns error code on failure.
 static int sysfsopen(int fd, const char *name) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * file_io = curproc->iotab[fd];
 
     if (file_io == NULL)
@@ -67,6 +81,13 @@ static int sysfsopen(int fd, const char *name) {
 // Closes the device at the specified file descriptor.
 static int sysclose(int fd) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * io = curproc->iotab[fd];
 
     if (io == NULL)
@@ -80,6 +101,13 @@ static int sysclose(int fd) {
 // Reads from the opened file descriptor and writes bufsz bytes into buf.
 static long sysread(int fd, void *buf, size_t bufsz) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * io = curproc->iotab[fd];
 
     if (io == NULL)
@@ -91,6 +119,13 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 // Reads bufsz bytes from buf and writes it to the opened file descriptor.
 static long syswrite(int fd, const void *buf, size_t len) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * io = curproc->iotab[fd];
 
     if (io == NULL)
@@ -102,6 +137,13 @@ static long syswrite(int fd, const void *buf, size_t len) {
 // Performs desired ioctl based on cmd
 static int sysioctl(int fd, int cmd, void *arg) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * io = curproc->iotab[fd];
 
     if (io == NULL)
@@ -113,6 +155,13 @@ static int sysioctl(int fd, int cmd, void *arg) {
 // Halts currently running user program and starts new program based on opened file at file descriptor.
 static int sysexec(int fd) {
     struct process * curproc = current_process();
+
+    if (curproc == NULL)
+        return -ENOENT;
+
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+        return -ENOENT;
+
     struct io_intf * exeio = curproc->iotab[fd];
 
     if (exeio == NULL)
