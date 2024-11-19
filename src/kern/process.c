@@ -100,13 +100,15 @@ int process_exec(struct io_intf * exeio){
             // TBD 3
             cur_proc->tid = 0;
             // Create root page table
-            uintptr_t new_page_table = memory_space_create(cur_proc->id);
-            if (!new_page_table){
-                kfree(cur_proc);
-                proctab[i] = NULL;
-                return -ENOMEM;
-            }
-            cur_proc->mtag = new_page_table;
+
+            // uintptr_t new_page_table = memory_space_create(cur_proc->id);
+            // if (!new_page_table){
+            //     kfree(cur_proc);
+            //     proctab[i] = NULL;
+            //     return -ENOMEM;
+            // }
+            // cur_proc->mtag = new_page_table;
+            cur_proc->mtag = active_memory_space();
             //struct pte *root = mtag_to_root(new_page_table);
             proctab[i] = cur_proc;
             console_printf("Process initialized. proc_num: %d\n", i);
