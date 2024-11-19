@@ -37,6 +37,9 @@ static int sysdevopen(int fd, const char *name, int instno) {
     struct process * curproc = current_process();
     struct io_intf * device_io = curproc->iotab[fd];
 
+    if (device_io == NULL)
+        return -EIO;
+
     int result = device_open(&device_io, name, instno);
 
     if (result < 0)
@@ -49,6 +52,9 @@ static int sysdevopen(int fd, const char *name, int instno) {
 static int sysfsopen(int fd, const char *name) {
     struct process * curproc = current_process();
     struct io_intf * file_io = curproc->iotab[fd];
+
+    if (file_io == NULL)
+        return -EIO;
 
     int result = fs_open(&file_io, name);
 
@@ -63,6 +69,9 @@ static int sysclose(int fd) {
     struct process * curproc = current_process();
     struct io_intf * io = curproc->iotab[fd];
 
+    if (io == NULL)
+        return -EIO;
+
     io->ops->close(io);
 
     return 0;
@@ -73,6 +82,9 @@ static long sysread(int fd, void *buf, size_t bufsz) {
     struct process * curproc = current_process();
     struct io_intf * io = curproc->iotab[fd];
 
+    if (io == NULL)
+        return -EIO;
+
     return ioread(io, buf, bufsz);
 }
 
@@ -80,6 +92,9 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 static long syswrite(int fd, const void *buf, size_t len) {
     struct process * curproc = current_process();
     struct io_intf * io = curproc->iotab[fd];
+
+    if (io == NULL)
+        return -EIO;
 
     return iowrite(io, buf, len);
 }
@@ -89,6 +104,9 @@ static int sysioctl(int fd, int cmd, void *arg) {
     struct process * curproc = current_process();
     struct io_intf * io = curproc->iotab[fd];
 
+    if (io == NULL)
+        return -EIO;
+
     return ioctl(io, cmd, arg);
 }
 
@@ -96,6 +114,9 @@ static int sysioctl(int fd, int cmd, void *arg) {
 static int sysexec(int fd) {
     struct process * curproc = current_process();
     struct io_intf * exeio = curproc->iotab[fd];
+
+    if (exeio == NULL)
+        return -EIO;
 
     return process_exec(exeio);
 }

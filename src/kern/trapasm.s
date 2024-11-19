@@ -153,12 +153,12 @@ _trap_entry_from_umode:
 
 
         # TODO: FIXME your code here
+        csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
         addi    sp, t6, -34*8   # allocate space for trap frame
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
         addi    t6, sp, 34*8    # save original sp
         sd      t6, 2*8(sp)     #
         sd      tp, 0*8(sp)     # x[0] used to save tp when in U mode
-        csrr    sp, sscratch    # sp points to thread_stack_anchor
 
         save_gprs_except_t6_and_sp
         save_sstatus_and_sepc
@@ -167,7 +167,9 @@ _trap_entry_from_umode:
         # _trap_entry_from_smode.
 
         # TODO: FIXME your code here
-        csrw    utvec, _trap_entry_from_smode
+        la      t6, _trap_entry_from_smode
+        csrw    stvec, t6
+        
         call    trap_umode_cont
 
         # U mode handlers return here because the call instruction above places
@@ -176,13 +178,16 @@ _trap_entry_from_umode:
         # trap handler.
 
         # TODO: FIXME your code here
-        csrw    utvec, _trap_entry_from_umode
+        la      t6, _trap_entry_from_umode
+        csrw    stvec, t6
 
         restore_sstatus_and_sepc
         restore_gprs_except_t6_and_sp
 
         ld      t6, 31*8(sp)
         ld      sp, 2*8(sp)
+
+        csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
 
         sret
 
