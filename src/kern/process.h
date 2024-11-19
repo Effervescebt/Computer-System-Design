@@ -16,6 +16,7 @@
 #include "error.h"
 #include "heap.h"
 #include "csr.h"
+#include "config.h"
 
 // EXPORTED TYPE DEFINITIONS
 //

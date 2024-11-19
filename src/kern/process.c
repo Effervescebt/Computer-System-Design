@@ -57,11 +57,13 @@ void procmgr_init(void){
     main_proc.id = MAIN_PID;
     // Set the associated thread id
     main_proc.tid = running_thread();
-    main_proc.mtag = memory_space_create(0);
+    main_proc.mtag = main_mtag;
     // Clean iotab
     for (int i = 0; i < PROCESS_IOMAX; i++){
         main_proc.iotab[i] = NULL;
     }
+    // TBD 1
+    thread_set_process(main_proc.tid, &main_proc);
     // update to 1 (this variable is used as flag here)
     procmgr_initialized = 1;
 }
@@ -128,7 +130,10 @@ int process_exec(struct io_intf * exeio){
     }
     console_printf("Elf successfully loaded. Entry point: %p\n", entry_point);
 
-
+    // This is the staring pt of user stack
+    uintptr_t usp = USER_STACK_VMA;
+    // Now change to user mode
+    thread_jump_to_user(usp, entry_point);
     return 0;
 }
 
