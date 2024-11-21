@@ -47,6 +47,13 @@ char procmgr_initialized = 0;
 #include "process.h"
 #define ENOMEM 11
 
+/**
+ * @brief: This function initialize the main user process
+ * 
+ * We clear the structure and fill in all param.
+ * And set the progcmgr_initialized flag
+ * 
+ */
 void procmgr_init(void){
     // for (int i = 0; i < NPROC; i++) {
     //     proctab[i] = NULL;
@@ -55,7 +62,7 @@ void procmgr_init(void){
     memset(&main_proc, 0, sizeof(main_proc));
     // Initialize PID to 0
     main_proc.id = MAIN_PID;
-    // Set the associated thread id
+    // Set the associated thread id and mtag
     main_proc.tid = running_thread();
     main_proc.mtag = main_mtag;
     // Clean iotab
@@ -63,11 +70,14 @@ void procmgr_init(void){
         main_proc.iotab[i] = NULL;
     }
     // TBD 1
-    thread_set_process(main_proc.tid, &main_proc);
     // update to 1 (this variable is used as flag here)
     procmgr_initialized = 1;
+    console_printf("Main process initialized successfully.\n");
 }
 
+/**
+ * @brief: 
+ */
 int process_exec(struct io_intf * exeio){
     // First check arg
     if (!exeio){
@@ -78,6 +88,7 @@ int process_exec(struct io_intf * exeio){
     // Initialize a new ptr for process 
     struct process* cur_proc = NULL;
     // Now we should first check and find avaible slot for user process
+    // Notice there are maximum of 16 concurrent process
     for (int i = 0; i < NPROC; i++){
         // If we find the empty slot
         if (proctab[i] == NULL){
@@ -88,26 +99,29 @@ int process_exec(struct io_intf * exeio){
                 // Memory allocate failure
                 return -EACCESS;
             }
+            console_printf("New space for process created.\n");
             // If successfully allocate space
             // 1. Clear it
             memset(cur_proc, 0, sizeof(struct process));
             // 2. allocate process id 
             cur_proc->id = i;
-            // 3. allocate thread id
-            // struct thread *current_thread = CURTHR;
-            // int tid = current_thread->id;
-            // #define CURTHR ((struct thread*)__builtin_thread_pointer())
+                // struct thread *current_thread = CURTHR;
+                // int tid = current_thread->id;
+                // #define CURTHR ((struct thread*)__builtin_thread_pointer())
+
+            // 3. allocate thread id 
+            // Since we are having at most user process for this cp, we can set it to 0 for now
             // TBD 3
             cur_proc->tid = 0;
-            // Create root page table
 
-            // uintptr_t new_page_table = memory_space_create(cur_proc->id);
-            // if (!new_page_table){
-            //     kfree(cur_proc);
-            //     proctab[i] = NULL;
-            //     return -ENOMEM;
-            // }
-            // cur_proc->mtag = new_page_table;
+                // uintptr_t new_page_table = memory_space_create(cur_proc->id);
+                // if (!new_page_table){
+                //     kfree(cur_proc);
+                //     proctab[i] = NULL;
+                //     return -ENOMEM;
+                // }
+                // cur_proc->mtag = new_page_table;
+            // Create root page table
             cur_proc->mtag = active_memory_space();
             //struct pte *root = mtag_to_root(new_page_table);
             proctab[i] = cur_proc;
@@ -133,12 +147,23 @@ int process_exec(struct io_intf * exeio){
     console_printf("Elf successfully loaded. Entry point: %p\n", entry_point);
 
     // This is the staring pt of user stack
-    uintptr_t usp = USER_STACK_VMA;
+    //uintptr_t usp = USER_STACK_VMA;
+    uintptr_t usp = USER_END_VMA ;
     // Now change to user mode
     thread_jump_to_user(usp, entry_point);
+    console_printf("Successfully to U mode\n");
     return 0;
 }
 
+/**
+ * @brief: This function clean up a finished process
+ * 
+ * Relase following: 1. Process memory space
+ * 2. Open I/O interfaces
+ * 3. Associated kernel thread
+ * 
+ * @note: For process memory space, unmap the user space before calling switch function (TBD)
+ */
 void process_exit(){
     // First get current process
     struct process* cur_prog = current_process();
@@ -148,6 +173,7 @@ void process_exit(){
     }
     // Release memory space
     // TBD 4
+    memory_unmap_and_free_user();
     memory_space_switch(cur_prog->mtag);
     // Release I/O interfaces
     for (int i = 0; i < NPROC; i++){

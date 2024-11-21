@@ -17,6 +17,8 @@
 #include "heap.h"
 #include "csr.h"
 #include "config.h"
+#include "string.h"
+#include "console.h"
 
 // EXPORTED TYPE DEFINITIONS
 //
