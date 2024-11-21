@@ -262,6 +262,7 @@ void thread_exit(void) {
  * 
  */
 void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
+    intr_disable();
     csrw_sepc(upc);
     csrs_sstatus(RISCV_SSTATUS_SPIE);
     csrc_sstatus(RISCV_SSTATUS_SPP);
