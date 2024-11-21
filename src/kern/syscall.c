@@ -34,6 +34,14 @@ static int sysmsgin(char * msg, size_t n) {
 
 // Prints msg to the console.
 static int sysmsgout(const char *msg) {
+    // validate string
+    int result;
+
+    result = memory_validate_vstr(msg, PTE_U);
+
+    if (result != 0)
+        return result;
+
     console_puts(msg);
     return 0;
 }
@@ -70,7 +78,7 @@ static int sysdevopen(int fd, const char *name, int instno) {
     if (result < 0)
         return -ENODEV;
 
-    return 0;
+    return fd;
 }
 
 // Opens a file at the specified file descriptor and returns error code on failure.
@@ -105,7 +113,7 @@ static int sysfsopen(int fd, const char *name) {
     if (result < 0)
         return -ENOENT;
 
-    return 0;
+    return fd;
 }
 
 // Closes the device at the specified file descriptor.
@@ -116,19 +124,8 @@ static int sysclose(int fd) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd >= MAX_OPEN_FILE_CT)
+    if (fd <0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
-    
-    // fd < 0 require the next available file descriptor
-    if (fd < 0) {
-        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
-            if (curproc->iotab[fd] != NULL)
-                break;
-        }
-
-        if (fd == MAX_OPEN_FILE_CT)
-            return -ENOENT;
-    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -137,18 +134,20 @@ static int sysclose(int fd) {
 
     io->ops->close(io);
 
+    curproc->iotab[fd] = NULL;
+
     return 0;
 }
 
 // Reads from the opened file descriptor and writes bufsz bytes into buf.
 static long sysread(int fd, void *buf, size_t bufsz) {
-    // // validate buffer
-    // int validate_result;
+    // validate buffer
+    int validate_result;
 
-    // validate_result = memory_validate_vptr_len(buf, bufsz, PTE_U | PTE_W);
+    validate_result = memory_validate_vptr_len(buf, bufsz, PTE_U | PTE_W);
 
-    // if (validate_result != 1)
-    //     return validate_result;
+    if (validate_result != 1)
+        return validate_result;
 
     struct process * curproc = current_process();
 
@@ -156,19 +155,8 @@ static long sysread(int fd, void *buf, size_t bufsz) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd >= MAX_OPEN_FILE_CT)
+    if (fd <0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
-
-    // fd < 0 require the next available file descriptor
-    if (fd < 0) {
-        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
-            if (curproc->iotab[fd] != NULL)
-                break;
-        }
-
-        if (fd == MAX_OPEN_FILE_CT)
-            return -ENOENT;
-    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -179,34 +167,15 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 }
 
 // Reads bufsz bytes from buf and writes it to the opened file descriptor.
-static long syswrite(int fd, const void *buf, size_t len) {
-    // // validate buffer
-    // int validate_result;
-
-    // validate_result = memory_validate_vptr_len(buf, len, PTE_U | PTE_R);
-
-    // if (validate_result != 1)
-    //     return validate_result;
-        
+static long syswrite(int fd, const void *buf, size_t len) {        
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd >= MAX_OPEN_FILE_CT)
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
-
-    // fd < 0 require the next available file descriptor
-    if (fd < 0) {
-        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
-            if (curproc->iotab[fd] != NULL)
-                break;
-        }
-
-        if (fd == MAX_OPEN_FILE_CT)
-            return -ENOENT;
-    }
 
     struct io_intf * io = curproc->iotab[fd];
 
