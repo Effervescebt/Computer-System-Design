@@ -1,7 +1,5 @@
 # thrasm.s - Special functions called from thread.c
 #
-        .section        .data
-        .extern _trap_entry_from_umode
         
 # struct thread * _thread_swtch(struct thread * resuming_thread)
 
@@ -125,9 +123,9 @@ _thread_finish_jump:
         la      a0, _trap_entry_from_umode      # Set stvec to _trap_entry_from_umode
         csrw    stvec, a0                       #
 
-        # move the entry point for user into sp
+        # update to user stack pointer
         mv sp, a1
-        sret
+        sret    # return to U mode
 
 # Statically allocated stack for the idle thread.
 
