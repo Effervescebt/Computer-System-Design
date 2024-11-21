@@ -26,7 +26,7 @@ void main(void) {
     int result;
 
     // Open ser1 device as fd=0
-    result = _devopen(0, "ser", 1);
+    result = _devopen(0, "blk", 0);
     if (result < 0) {
         _msgout("_devopen failed");
         _exit();

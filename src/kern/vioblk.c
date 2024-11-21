@@ -272,9 +272,9 @@ int vioblk_open(struct io_intf ** ioptr, void * aux) {
     struct vioblk_device * dev = aux;
     *ioptr = &dev->io_intf;
 
-    // check if failed to open
+    // check if opened
     if (dev->opened) 
-        return -EBUSY;
+        return 0;
 
     // set the virtq avail and virtq used queues
     dev->vq.avail.flags = 0;
