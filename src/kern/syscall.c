@@ -46,8 +46,19 @@ static int sysdevopen(int fd, const char *name, int instno) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * device_io = curproc->iotab[fd];
 
@@ -70,8 +81,19 @@ static int sysfsopen(int fd, const char *name) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * file_io = curproc->iotab[fd];
 
@@ -94,8 +116,19 @@ static int sysclose(int fd) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+    
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -109,14 +142,33 @@ static int sysclose(int fd) {
 
 // Reads from the opened file descriptor and writes bufsz bytes into buf.
 static long sysread(int fd, void *buf, size_t bufsz) {
+    // // validate buffer
+    // int validate_result;
+
+    // validate_result = memory_validate_vptr_len(buf, bufsz, PTE_U | PTE_W);
+
+    // if (validate_result != 1)
+    //     return validate_result;
+
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -128,14 +180,33 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 
 // Reads bufsz bytes from buf and writes it to the opened file descriptor.
 static long syswrite(int fd, const void *buf, size_t len) {
+    // // validate buffer
+    // int validate_result;
+
+    // validate_result = memory_validate_vptr_len(buf, len, PTE_U | PTE_R);
+
+    // if (validate_result != 1)
+    //     return validate_result;
+        
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -153,8 +224,19 @@ static int sysioctl(int fd, int cmd, void *arg) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * io = curproc->iotab[fd];
 
@@ -172,8 +254,19 @@ static int sysexec(int fd) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
+    if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
+
+    // fd < 0 require the next available file descriptor
+    if (fd < 0) {
+        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+            if (curproc->iotab[fd] != NULL)
+                break;
+        }
+
+        if (fd == MAX_OPEN_FILE_CT)
+            return -ENOENT;
+    }
 
     struct io_intf * exeio = curproc->iotab[fd];
 
@@ -186,6 +279,7 @@ static int sysexec(int fd) {
 // Called from the usermode exception handler to handle all syscalls. Jumps to a system call based on
 // the specified system call number
 void syscall_handler(struct trap_frame * tfr) {
+    tfr->sepc += 4;
     int scnum = tfr->x[TFR_A7];
 
     switch (scnum) {

@@ -158,10 +158,11 @@ _trap_entry_from_umode:
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
         addi    t6, sp, 34*8    # save original sp
         sd      t6, 2*8(sp)     #
-        sd      tp, 0*8(sp)     # x[0] used to save tp when in U mode
 
         save_gprs_except_t6_and_sp
         save_sstatus_and_sepc
+
+        ld      tp, 0*8(sp)         # tp contains thread pointer
 
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.
