@@ -112,7 +112,12 @@ _thread_setup:
 #      struct thread_stack_anchor * stack_anchor,
 #      uintptr_t usp, uintptr_t upc, ...);
 
-# arg: CURTHR->stack_base, usp, upc
+# @brief: This function completes the procesdure of changing to U mode
+# @arg: CURTHR->stack_base: stack base of current thread
+#       usp: user stack pointer
+#       upc: entry point of the process
+# The work of switching to user mode continues here.
+# We update the sscratch.
 _thread_finish_jump:
         # While in user mode, sscratch points to a struct thread_stack_anchor
         # located at the base of the stack, which contains the current thread

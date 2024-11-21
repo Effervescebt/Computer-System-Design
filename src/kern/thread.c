@@ -250,10 +250,22 @@ void thread_exit(void) {
     panic("thread_exit() failed");
 }
 
+/**
+ * @brief: This function is used to change from S mode to U mode
+ * @arg: usp: user stack pointer that we want change our sp to
+ *       upc: the entry point for the program/process
+ * 
+ * This function mainly has the process executing in user mode.
+ * We set PC to sepc
+ * We sets mode to sstatus.SPP = 0
+ * We set sstatus.SPIE = 1
+ * 
+ */
 void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
     csrw_sepc(upc);
     csrs_sstatus(RISCV_SSTATUS_SPIE);
     csrc_sstatus(RISCV_SSTATUS_SPP);
+    console_printf("CSR initialized correctly\n");
     _thread_finish_jump(CURTHR->stack_base, usp, upc);
 }
 
