@@ -12,6 +12,7 @@ extern int console_initialized;
 
 extern void console_putchar(char c);
 extern char console_getchar(void);
+extern char * console_getsn(char * buf, size_t n);
 extern void console_puts(const char * str);
 extern size_t console_printf(const char * fmt, ...);
 extern size_t console_vprintf(const char * fmt, va_list ap);

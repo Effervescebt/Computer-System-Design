@@ -26,6 +26,12 @@ static int sysexit(void) {
     return 0;
 }
 
+// Get input from the user
+static int sysmsgin(char * msg, size_t n) {
+    console_getsn(msg, n);
+    return 0;
+}
+
 // Prints msg to the console.
 static int sysmsgout(const char *msg) {
     console_puts(msg);
@@ -36,6 +42,7 @@ static int sysmsgout(const char *msg) {
 static int sysdevopen(int fd, const char *name, int instno) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -59,6 +66,7 @@ static int sysdevopen(int fd, const char *name, int instno) {
 static int sysfsopen(int fd, const char *name) {
     struct process * curproc = current_process();
 
+    // boundary checks    
     if (curproc == NULL)
         return -ENOENT;
 
@@ -82,6 +90,7 @@ static int sysfsopen(int fd, const char *name) {
 static int sysclose(int fd) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -102,6 +111,7 @@ static int sysclose(int fd) {
 static long sysread(int fd, void *buf, size_t bufsz) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -120,6 +130,7 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 static long syswrite(int fd, const void *buf, size_t len) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -138,6 +149,7 @@ static long syswrite(int fd, const void *buf, size_t len) {
 static int sysioctl(int fd, int cmd, void *arg) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -156,6 +168,7 @@ static int sysioctl(int fd, int cmd, void *arg) {
 static int sysexec(int fd) {
     struct process * curproc = current_process();
 
+    // boundary checks
     if (curproc == NULL)
         return -ENOENT;
 
@@ -181,6 +194,9 @@ void syscall_handler(struct trap_frame * tfr) {
             break;
         case SYSCALL_MSGOUT:
             tfr->x[TFR_A0] = sysmsgout((const char *) tfr->x[TFR_A0]);
+            break;
+        case SYSCALL_MSGIN:
+            tfr->x[TFR_A0] = sysmsgin((char *) tfr->x[TFR_A0], tfr->x[TFR_A1]);
             break;
         case SYSCALL_DEVOPEN:
             tfr->x[TFR_A0] = sysdevopen(tfr->x[TFR_A0], (const char *) tfr->x[TFR_A1], tfr->x[TFR_A2]);

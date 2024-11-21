@@ -9,6 +9,13 @@ _exit:
         ecall
         ret
 
+        .global _msgin
+        .type   _msgin, @function
+_msgin:
+        li      a7, SYSCALL_MSGIN
+        ecall
+        ret
+
         .global _msgout
         .type   _msgout, @function
 _msgout:

@@ -16,6 +16,8 @@ struct iovprintf_state {
     int err;
 };
 
+#define FS_BLKSZ 4096
+
 // INTERNAL FUNCTION DECLARATIONS
 //
 
