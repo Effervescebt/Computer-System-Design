@@ -1,6 +1,6 @@
 # thrasm.s - Special functions called from thread.c
 #
-
+        
 # struct thread * _thread_swtch(struct thread * resuming_thread)
 
 # Switches from the currently running thread to another thread and returns when
@@ -112,14 +112,24 @@ _thread_setup:
 #      struct thread_stack_anchor * stack_anchor,
 #      uintptr_t usp, uintptr_t upc, ...);
 
-
+# @brief: This function completes the procesdure of changing to U mode
+# @arg: CURTHR->stack_base: stack base of current thread
+#       usp: user stack pointer
+#       upc: entry point of the process
+# The work of switching to user mode continues here.
+# We update the sscratch.
 _thread_finish_jump:
         # While in user mode, sscratch points to a struct thread_stack_anchor
         # located at the base of the stack, which contains the current thread
         # pointer and serves as our starting stack pointer.
 
         # TODO: FIXME your code here
-
+        la      ra, process_exit
+        csrw    sscratch, a0     # Set sscratch to kernel stack pointer
+        la      a0, _trap_entry_from_umode      # Set stvec to _trap_entry_from_umode
+        csrw    stvec, a0                       #
+        mv      sp, a1       # update to user stack pointer
+        sret    # return to U mode
 
 # Statically allocated stack for the idle thread.
 

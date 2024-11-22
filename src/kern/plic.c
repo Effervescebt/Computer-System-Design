@@ -18,6 +18,11 @@
 
 #define PLIC_SRCCNT 0x400
 #define PLIC_CTXCNT 1
+#define IP_BASE 0x1000
+#define IE_BASE 0x2000
+#define P_THRESHOLD_BASE 0x200000
+#define I_CLAIM_BASE 0x200004
+#define I_COMPLETION_BASE 0x200004
 
 // INTERNAL FUNCTION DECLARATIONS
 //
@@ -48,7 +53,7 @@ void plic_init(void) {
 
     for (i = 0; i < PLIC_SRCCNT; i++) {
         plic_set_source_priority(i, 0);
-        plic_enable_source_for_context(0, i);
+        plic_enable_source_for_context(1, i);
     }
 }
 
@@ -67,126 +72,168 @@ extern void plic_disable_irq(int irqno) {
 extern int plic_claim_irq(void) {
     // Hardwired context 0 (M mode on hart 0)
     trace("%s()", __func__);
-    return plic_claim_context_interrupt(0);
+    return plic_claim_context_interrupt(1);
 }
 
 extern void plic_close_irq(int irqno) {
     // Hardwired context 0 (M mode on hart 0)
     trace("%s(irqno=%d)", __func__, irqno);
-    plic_complete_context_interrupt(0, irqno);
+    plic_complete_context_interrupt(1, irqno);
 }
 
 // INTERNAL FUNCTION DEFINITIONS
 //
 
-/* This function sets the priority level for a specific interrupt source.
-* It modifies the priority array, where each entry corresponds to a specific interrupt source.
-*
-* Arguments: srcno-source number    level-priority level
-* Return: void
-*/
+/*
+ * @brief Set the source priority in PLIC
+ * 
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * First entry starts at 0x0 in PLIC reserved memory,
+ * thus PLIC_IOBASE in real memory.
+ * Offset is srcno * 4(byte, memory occupied by each entry) + PLIC_IOBASE
+ * 
+ * @param srcno: interrupt source irqno or source ID
+ * @param level: priority level of current interrupt source
+ */
+
 void plic_set_source_priority(uint32_t srcno, uint32_t level) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each priority regesiter. 
-    uint64_t addr = PLIC_IOBASE + 4 * srcno;
-    *((volatile uint32_t*) addr) = level;
+    uint64_t offset = srcno * 4 + PLIC_IOBASE;
+    //console_printf("offset at: %x\n", offset);
+    *((volatile uint32_t *)offset) = level;
 }
 
-/* This function checks if an interrupt source is pending by inspecting the pending array.
-* The pending bit is determined by checking the bit corresponding to srcno in the pending array.
-*
-* Arguments: srcno-source number
-* Return: 1 if the interrupt is pending, 0 otherwise
-*/
+/*
+ * @brief Checks pending interrupt in PLIC
+ * 
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * First entry starts at 0x1000 in PLIC reserved memory, thus PLIC_IOBASE + IP_BASE(0x1000) in real memory.
+ * Offset has term srcno/32*4. Since the pending bit for each entry is only one, we'll need 8 of them to occupy a byte in memory,
+ * while memory map registers are 32bit-4byte aligned. Therefore we first do srcno/32 to get nth 4-byte memory address, and *4 to
+ * get actual number of bytes in memory. If we now visit the memory location,we shall get a 32bit value indicating 32 source pending bits.
+ * To set the specific bit indicated by srcno, we'll left shift 1 for srcno%32 bits(bits are stored from low to high, i.e. small to big srcid).
+ * -> Left shift 1 with needed bits as explained above
+ * -> Return shifted bit & bits stored in offset memory location, which results 1 if the stored pending bit is 1
+ * 
+ * @param srcno: interrupt source id to look up for
+ * 
+ * @return val: int value, 1 for source pending, 0 for not
+ */
+
 int plic_source_pending(uint32_t srcno) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each pending regesiter. 
-    // The pending registers start from base + 0x1000. 
-    uint64_t addr = PLIC_IOBASE + 0x1000 + 4 * (srcno / 32);
-    int bit = srcno % 32;   // The exact bit position in the register. 
-    if (*((volatile uint32_t*) addr) & (1 << bit)) return 1;   // Check if the pending bit is 1. 
-    else    return 0;
+    size_t offset = IP_BASE + srcno / 32 * 4 + PLIC_IOBASE; // setting memory offset
+    uint32_t bit_loc = 1 << (srcno % 32); // finding corresponding bit for srcno
+    return *((volatile uint32_t *)offset) & bit_loc;
 }
 
- 
-/* This function enables a specific interrupt source for a given context.
-* It sets the appropriate bit in the enable array. It calculates the index based on the source number
-* and context, and sets the corresponding bit for the source.
-*
-* Arguments: ctxno-contex number    srcno-source number
-* Return: void
-*/
+/*
+ * @brief Enable source for specific ctxno and srcno by setting 1 for enable bit
+ * 
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * Offset is PLIC_IOBASE + IE_BASE(0x2000) + ctxno*128(each context occupies 1024bits-128bytes) + srcno/32*4
+ * For the term srcno/32*4, it's the same as previous function plic_source_pending that locates memory address where a 32-bit value with
+ * the current source enable bit stored somewhere in it.
+ * -> Left shift 1 with needed bits
+ * Shifting srcno%32 has the same reason as done in plic_source_pending
+ * -> Do shifted bit |= bits in offset memory address, corresponding enable bit will be set to 1
+ * 
+ * @param ctxno: the context number currently working on
+ * @param srcno: the source ID of which needs to be enabled
+ */
+
 void plic_enable_source_for_context(uint32_t ctxno, uint32_t srcno) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each enables regesiter. 
-    // The enables registers start from base + 0x2000. Each context is 0x80 long. 
-    uint64_t addr = PLIC_IOBASE + 0x2000 + 0x80 * ctxno + 4 * (srcno / 32);
-    int bit = srcno % 32;   // The exact bit position in the register.   
-    *((volatile uint32_t*) addr) |= (1 << bit); // Set the enable bit to 1. 
+    size_t offset = PLIC_IOBASE + IE_BASE + ctxno * 128 + srcno / 32 * 4; // each context occupies 1024bits-128bytes in the enable bit area
+    uint32_t bit_loc = 1 << (srcno % 32);
+    *((volatile uint32_t *)offset) |= bit_loc; // writes 1 to required enable bit
 }
 
-/* This function disables a specific interrupt source for a given context.
-* It clears the appropriate bit in the enable array. Similar to plic enable source for context,
-*
-* it calculates the correct bit to clear for the given context and source.
-* Arguments: ctxno-contex number    srcid-source id
-* Return: void
-*/
+/*
+ * @brief Disable source for specific ctxno and srcid by setting enable bit 0
+ * 
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * Offset is PLIC_IOBASE + IE_BASE(0x2000) + ctxno*128(each context occupies 1024bits-128bytes) + srcno/32*4
+ * For the term srcno/32*4, it's the same as previous function plic_source_pending that locates memory address where a 32-bit value with
+ * the current source enable bit stored somewhere in it.
+ * -> Left shift 1 with needed bits
+ * Shifting srcno%32 has the same reason as done in plic_source_pending
+ * -> Do ~shifted bit &= bits in offset memory location, will set the corresponding enable bit to 0
+ * 
+ * @param ctxno: the context number currently working on
+ * @param srcid: the source ID of which needs to be enabled
+ */
+
 void plic_disable_source_for_context(uint32_t ctxno, uint32_t srcid) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each enables regesiter. 
-    // The enables registers start from base + 0x2000. Each context is 0x80 long. 
-    uint64_t addr = PLIC_IOBASE + 0x2000 + 0x80 * ctxno + 4 * (srcid / 32);
-    int bit = srcid % 32;   // The exact bit position in the register.   
-    *((volatile uint32_t*) addr) &= ~(1 << bit); // Set the enable bit to 0. 
+    size_t offset = PLIC_IOBASE + IE_BASE + ctxno * 128 + srcid / 32 * 4; // each context occupies 1024bits-128bytes in the enable bit area
+    uint32_t bit_loc = 1 << (srcid % 32);
+    *((volatile uint32_t *)offset) &= ~bit_loc; // writes 0 to required enable bit
 }
 
-/* This function sets the interrupt priority threshold for a specific context.
-* Interrupts with a priority lower than the threshold will not be handled by the context. 
-*
-* Arguments: ctxno-contex number    level-threshold level
-* Return: void
-*/
+/*
+ * @brief Set threshold for specified context
+ *
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * Offset is PLIC_IOBASE + P_THRESHOLD_BASE(0X200000) + ctxno*4096(that adjacent context threshold memory locations are 4096 bytes away)
+ * -> Store priority threshold (input uint32_t level) to the offset memory location
+ * 
+ * @param ctxno: the context number currently working on
+ * @param level: the priority threshold to be set
+ */
+
 void plic_set_context_threshold(uint32_t ctxno, uint32_t level) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each threshold regesiter. 
-    // The threshold registers start from base + 0x200000. Each context is 0x1000 long. 
-    uint64_t addr = PLIC_IOBASE + 0x200000 + 0x1000 * ctxno;
-    *((volatile uint32_t*) addr) = level;
+    size_t offset = P_THRESHOLD_BASE + ctxno * 4096 + PLIC_IOBASE; // 4096 is the byte number to jump from one threshold location to the next
+    *((volatile uint32_t *)offset) = level;
 }
 
-/* This function claims an interrupt for a given context.
-* It reads from the claim register and returns the interrupt ID of the highest-priority pending interrupt. 
-*
-* Arguments: ctxno-contex number
-* Return: the interrupt ID or 0 if there is no interrupts. 
-*/
+/*
+ * @brief Claim the interrupt for specific context to handle
+ *
+ * @Documentation This function reads from the claim register and returns the interrupt ID of the highest-priority pending interrupt. It returns 0 if no interrupts are pending.
+ *
+ * @specific
+ * -> Set offset memory location given in PLIC manual
+ * Offset at PLIC_IOBASE + I_CLAIM_BASE(0x200004) + ctxno*4096(that adjacent claim process memory locations are 4096 bytes away)
+ * -> Return srcno stored in the offset address
+ * This srcno is the interrupt source with highest priority
+ * This function simply performs a read from that offset address
+ * 
+ * @param ctxno: the context number currently working on
+ * @return val: the highest priority source's ID
+ */
+
 uint32_t plic_claim_context_interrupt(uint32_t ctxno) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each claim regesiter. 
-    // The claim registers start from base + 0x200004. Each context is 0x1000 long. 
-    uint64_t addr = PLIC_IOBASE + 0x200004 + 0x1000 * ctxno;
-    return *((volatile uint32_t*) addr);  // claim return 0 if there is no pending interrupt. 
+    size_t offset = PLIC_IOBASE + I_CLAIM_BASE + ctxno * 4096; // (adjacent claim process memory locations are 4096 bytes away)
+    
+    return *((volatile uint32_t *)offset);
 }
 
-/* This function completes the handling of an interrupt for a given context.
-* It writes the interrupt source number back to the claim register, 
-* notifying the PLIC that the interrupt has been serviced.
-*
-* Arguments: ctxno-contex number    srcno-source number
-* Return: void
-*/
+/*
+ * @brief Writes back the srcno being handled by specific context
+ *
+ * @Documentation This function writes the interrupt source number back to the claim register, notifying the PLIC that the interrupt has been serviced.
+ *
+ * @specific
+ * -> Set the offset memory location given in PLIC context
+ * Offset is the same as plic_claim_context_interrupt
+ * There's another base called I_COMPLETION_BASE(same as I_CLAIM_BASE), intended to be used in this function, yet not needed
+ * -> Stores the srcno into the offset location specified by ctxno
+ * This will tell PLIC that srcno has been handled.
+ * 
+ * @param ctxno: the context number currently working on
+ * @param srcno: the source ID currently being handled
+ */
+
 void plic_complete_context_interrupt(uint32_t ctxno, uint32_t srcno) {
     // FIXME your code goes here
-
-    // 32/8=4 is the offset for each claim regesiter. 
-    // The claim registers start from base + 0x200004. Each context is 0x1000 long. 
-    uint64_t addr = PLIC_IOBASE + 0x200004 + 0x1000 * ctxno;
-    *((volatile uint32_t*) addr) = srcno;
+    size_t hart_offset = I_CLAIM_BASE + ctxno * 4096 + PLIC_IOBASE; // (adjacent completion memory locations are 4096 bytes away)
+    *((volatile uint32_t *)hart_offset) = srcno;
 }

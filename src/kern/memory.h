@@ -41,6 +41,17 @@
 
 #define PTE_CNT (PAGE_SIZE/8) // number of PTEs per page table
 
+#define CREATE_PTE 1
+
+struct pte {
+    uint64_t flags:8;
+    uint64_t rsw:2;
+    uint64_t ppn:44;
+    uint64_t reserved:7;
+    uint64_t pbmt:2;
+    uint64_t n:1;
+};
+
 // EXPORTED TYPE DEFINITIONS
 //
 
@@ -51,6 +62,9 @@ extern uintptr_t main_mtag;
 
 // EXPORTED FUNCTION DECLARATIONS
 //
+
+// Helper function for page table walk
+extern struct pte* walk_pt(struct pte* root, uintptr_t vma, int create);
 
 // void memory_init(void)
 // Initializes the memory manager. Must be called before calling any other
@@ -129,6 +143,11 @@ extern void * memory_alloc_and_map_range (
 
 extern void memory_unmap_and_free_user(void);
 
+// void memory_set_page_flags(const void *vp, uint8_t rwxug_flags)
+// Sets the flags of the PTE associated with vp. Only works with 4 kB pages.
+
+extern void memory_set_page_flags(const void *vp, uint8_t rwxug_flags);
+
 // void memory_set_range_flags (
 //      const void * vp, size_t size, uint_fast8_t rwxug_flags)
 // Chnages the PTE flags for all pages in a mapped range.
@@ -163,6 +182,23 @@ extern void memory_handle_page_fault(const void * vptr);
 
 // INLINE FUNCTION DEFINITIONS
 //
+
+// Three inline functions moved from memory.c
+// static inline uintptr_t active_space_mtag(void);
+// static inline struct pte * mtag_to_root(uintptr_t mtag);
+// static inline struct pte * active_space_root(void);
+
+static inline uintptr_t active_space_mtag(void) {
+    return csrr_satp();
+}
+
+static inline struct pte * mtag_to_root(uintptr_t mtag) {
+    return (struct pte *)((mtag << 20) >> 8);
+}
+
+static inline struct pte * active_space_root(void) {
+    return mtag_to_root(active_space_mtag());
+}
 
 static inline uintptr_t active_memory_space(void) {
     return csrr_satp();

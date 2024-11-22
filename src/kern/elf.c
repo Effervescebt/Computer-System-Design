@@ -5,6 +5,7 @@
 #include "console.h"
 #include "string.h"
 #include "intr.h"
+
 // Now define some global variables 
 #define EI_NIDENT 16
     // Here are error codes
@@ -110,7 +111,7 @@ Then we read the contents within individual program header and set the entry poi
 
 @return: int: 0 if successful, negative values if an error occurs
 */
-int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
+int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // We should first check the validity of the passed ELF file
     // validating checklist: Magic, Class, Data, ABI, Machine
 
@@ -184,10 +185,20 @@ int elf_load(struct io_intf *io, void (**entryptr)(struct io_intf *io)){
         // check p_type here given we only load PY_LOAD
         if(elf_phdr.p_type == PT_LOAD){
             // check address 
-            if (elf_phdr.p_paddr < addr_lower_bound || elf_phdr.p_vaddr > addr_upper_bound){
-                // invalid program header address
+            if (elf_phdr.p_vaddr < USER_START_VMA || elf_phdr.p_vaddr + elf_phdr.p_filesz > USER_END_VMA) {
                 return -PROG_ADDR;
             }
+            struct pte* elf_entry = walk_pt(active_space_root() , elf_phdr.p_vaddr, 0);
+            if ((elf_entry->flags & PTE_V) == 0) {
+                elf_entry->flags |= PTE_R | PTE_W;
+                uintptr_t allocated_page = (uintptr_t)(memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_X));
+                elf_entry->ppn = allocated_page;
+                elf_entry->flags |= PTE_V;
+            }
+            // if (elf_phdr.p_paddr < addr_lower_bound || elf_phdr.p_vaddr > addr_upper_bound){
+            //     // invalid program header address
+            //     return -PROG_ADDR;
+            // }
             // Now the address is within valid range
             // First we get position
             // int loc = fs_read(io, 3);
