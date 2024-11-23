@@ -34,7 +34,6 @@ void main(void) {
     void * mmio_base;
     int result;
     int i;
-
     console_init();
     memory_init();
     intr_init();

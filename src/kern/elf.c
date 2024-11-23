@@ -45,6 +45,10 @@
     // This global variable is required for Entry type check
 #define PT_LOAD 0x01
 
+#define PT_X 1
+#define PT_W 2
+#define PT_R 4
+
     // This global variable is required for program header address check
 #define addr_upper_bound 0x81000000
 #define addr_lower_bound 0x80100000
@@ -93,6 +97,20 @@ typedef struct {
 	Elf64_Xword	p_memsz;	/* Size of contents in memory. */
 	Elf64_Xword	p_align;	/* Alignment in memory and file. */
 } Elf64_Phdr;
+
+uint_fast8_t flag_convert(uint32_t flags) {
+    uint_fast8_t pte_flags = 0;
+    if (flags & PT_X) {
+        pte_flags |= PTE_X; 
+    }
+    if (flags & PT_W) {
+        pte_flags |= PTE_W;
+    }
+    if (flags & PT_R) {
+        pte_flags |= PTE_R;
+    }
+    return pte_flags;
+}
 
 // Note that ELF load function should read the elf header and process the program headers.
 // The loader should only load prorgam header entries of type pt_load
@@ -151,7 +169,6 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // Case 5: data check
     if(buffer[EI_DATA] != EI_ENDIAN){
         // -5 indicates incorrect endian (should be little endian)
-        //console_printf("ERROR! Not Little Endian");
         return -LITTLE_ENDIAN;
     }
 
@@ -169,13 +186,11 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // Now we have reached the end of valid check (at least I think so)
     // Next step would be processing the program headers
     // Notice that The loader should only load program header entries of type PT_LOAD
-    //console_printf("Elf header: \n");
     // Now iterate all the program header entries
     for (int i = 0; i < elf_header.e_phnum; i++){
         // Initialize a new pointer of program header
         Elf64_Phdr elf_phdr;
         ioseek(io, elf_header.e_phoff + i * elf_header.e_phentsize);
-        //fs_ioctl(io, IOCTL_SETPOS, (void*)elf_header.e_phoff + i * elf_header.e_phentsize);
         // Read data into phdr
         long result_2 = ioread_full(io, (void *)&elf_phdr, sizeof(Elf64_Phdr));
         if (result_2 < 0){
@@ -188,23 +203,18 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             if (elf_phdr.p_vaddr < USER_START_VMA || elf_phdr.p_vaddr + elf_phdr.p_filesz > USER_END_VMA) {
                 return -PROG_ADDR;
             }
-            struct pte* elf_entry = walk_pt(active_space_root() , elf_phdr.p_vaddr, 0);
-            if ((elf_entry->flags & PTE_V) == 0) {
-                elf_entry->flags |= PTE_R | PTE_W;
-                uintptr_t allocated_page = (uintptr_t)(memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_X));
-                elf_entry->ppn = allocated_page;
-                elf_entry->flags |= PTE_V;
-            }
-            // if (elf_phdr.p_paddr < addr_lower_bound || elf_phdr.p_vaddr > addr_upper_bound){
-            //     // invalid program header address
-            //     return -PROG_ADDR;
-            // }
+            // struct pte* elf_entry = walk_pt(active_space_root() , elf_phdr.p_vaddr, 1);
+           
+            kprintf("allocating size of %d\n", elf_phdr.p_filesz);
+            uint_fast8_t pte_flags = flag_convert(elf_phdr.p_flags);
+            uintptr_t allocated_page = (uintptr_t)(memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_W));            
+            
             // Now the address is within valid range
             // First we get position
-            // int loc = fs_read(io, 3);
             ioseek(io,elf_phdr.p_offset);
-            //fs_ioctl(io, IOCTL_SETPOS, (void *)elf_phdr.p_offset);
+            kprintf("try to allocate to %x\r\n", elf_phdr.p_vaddr);
             long prog_result = ioread_full(io, (void *)elf_phdr.p_vaddr, elf_phdr.p_filesz);
+            memory_set_range_flags(elf_phdr.p_vaddr, elf_phdr.p_filesz, pte_flags | PTE_U);
             if (prog_result < elf_phdr.p_filesz){
                 //  failure in program seg load
                 return -PROG_SEC_READ;

@@ -154,7 +154,7 @@ _trap_entry_from_umode:
 
         # TODO: FIXME your code here
         csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
-        addi    sp, t6, -34*8   # allocate space for trap frame
+        addi    sp, sp, -34*8   # allocate space for trap frame
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
         addi    t6, sp, 34*8    # save original sp
         sd      t6, 2*8(sp)     #
