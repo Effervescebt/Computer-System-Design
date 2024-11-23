@@ -162,7 +162,7 @@ _trap_entry_from_umode:
         save_gprs_except_t6_and_sp
         save_sstatus_and_sepc
 
-        ld      tp, 0*8(sp)         # tp contains thread pointer
+        ld      tp, 34*8(sp)         # tp contains thread pointer
 
         # We're now in S mode, so update our trap handler address to
         # _trap_entry_from_smode.

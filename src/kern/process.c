@@ -61,6 +61,7 @@ void procmgr_init(void){
     // Set the associated thread id and mtag
     main_proc.tid = running_thread();
     main_proc.mtag = main_mtag;
+    thread_set_process(running_thread(), &main_proc);
     // Clean iotab
     for (int i = 0; i < PROCESS_IOMAX; i++){
         main_proc.iotab[i] = NULL;
@@ -99,12 +100,12 @@ int process_exec(struct io_intf * exeio){
     if (elf_result < 0) {       
         return elf_result;                    
     }
-    console_printf("Elf successfully loaded. Entry point: %p\n", entry_point);
+    // console_printf("Elf successfully loaded. Entry point: %p\n", entry_point);
 
     // This is the staring pt of user stack
     uintptr_t usp = USER_STACK_VMA;
     // Now change to user mode
-    thread_jump_to_user(usp, &entry_point);
+    thread_jump_to_user(usp, entry_point);
     console_printf("Fail to U mode\n");
     return -EINVAL;
 }

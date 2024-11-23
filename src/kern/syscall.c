@@ -34,7 +34,7 @@ static int sysmsgin(char * msg, size_t n) {
 
 // Prints msg to the console.
 static int sysmsgout(const char *msg) {
-    kprintf("enter syscall msgout\n");
+    // kprintf("enter syscall msgout\n");
     // validate string
     int result;
 
@@ -109,7 +109,7 @@ static int sysfsopen(int fd, const char *name) {
     if (file_io == NULL)
         return -EIO;
 
-    int result = fs_open(&file_io, name);
+    int result = fs_open(name, &file_io);
 
     if (result < 0)
         return -ENOENT;
@@ -249,7 +249,7 @@ static int sysexec(int fd) {
 // Called from the usermode exception handler to handle all syscalls. Jumps to a system call based on
 // the specified system call number
 void syscall_handler(struct trap_frame * tfr) {
-    kprintf("enter syscall handler\n");
+    // kprintf("enter syscall handler\n");
     tfr->sepc += 4;
     int scnum = tfr->x[TFR_A7];
 

@@ -19,6 +19,7 @@
 #include "config.h"
 #include "string.h"
 #include "console.h"
+#include "elf.h"
 
 // EXPORTED TYPE DEFINITIONS
 //

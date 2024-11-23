@@ -137,11 +137,11 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // size of elf header should be 64 bit
     Elf64_Ehdr elf_header; // Initialize the elf header
     // char* buffer = NULL; // Initialize the empty buffer
-    console_printf("elf header initialize successfully\n");
+    // console_printf("elf header initialize successfully\n");
     long result = ioread_full(io, &elf_header, sizeof(Elf64_Ehdr));
-    console_printf("Result of ioread: %ld\n", result);
+    // console_printf("Result of ioread: %ld\n", result);
     unsigned char *buffer = elf_header.e_ident;
-    console_printf("checkpoint 0 reached, Entry point address: %p\n",(void *)elf_header.e_entry);
+    // console_printf("checkpoint 0 reached, Entry point address: %p\n",(void *)elf_header.e_entry);
     // Case 1: Failure in reading
     if (result < 0 || buffer == NULL){
         // failure in data reading
@@ -205,14 +205,14 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
             }
             // struct pte* elf_entry = walk_pt(active_space_root() , elf_phdr.p_vaddr, 1);
            
-            kprintf("allocating size of %d\n", elf_phdr.p_filesz);
+            // kprintf("allocating size of %d\n", elf_phdr.p_filesz);
             uint_fast8_t pte_flags = flag_convert(elf_phdr.p_flags);
             uintptr_t allocated_page = (uintptr_t)(memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_W));            
             
             // Now the address is within valid range
             // First we get position
             ioseek(io,elf_phdr.p_offset);
-            kprintf("try to allocate to %x\r\n", elf_phdr.p_vaddr);
+            // kprintf("try to allocate to %x\r\n", elf_phdr.p_vaddr);
             long prog_result = ioread_full(io, (void *)elf_phdr.p_vaddr, elf_phdr.p_filesz);
             memory_set_range_flags(elf_phdr.p_vaddr, elf_phdr.p_filesz, pte_flags | PTE_U);
             if (prog_result < elf_phdr.p_filesz){
@@ -222,8 +222,8 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
         }
     }
     // Now we need to move read program seg to entry point
-    console_printf("checkpoint 1 reached\n");
+    // console_printf("checkpoint 1 reached\n");
     *entryptr = (void*)(struct io_intf*)elf_header.e_entry;   
-    console_printf("checkpoint 2 reached, Entry point address: %p \n", *entryptr);
+    // console_printf("checkpoint 2 reached, Entry point address: %p \n", *entryptr);
     return 0;
 }

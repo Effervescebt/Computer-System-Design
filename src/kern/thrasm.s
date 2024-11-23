@@ -124,7 +124,7 @@ _thread_finish_jump:
         # pointer and serves as our starting stack pointer.
 
         # TODO: FIXME your code here
-        la      ra, process_exit
+        # la      ra, process_exit
         csrw    sscratch, a0     # Set sscratch to kernel stack pointer
         la      a0, _trap_entry_from_umode      # Set stvec to _trap_entry_from_umode
         csrw    stvec, a0                       #

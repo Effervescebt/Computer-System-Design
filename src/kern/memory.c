@@ -138,7 +138,7 @@ struct pte* walk_pt(struct pte* root, uintptr_t vma, int create) {
     // Find the pte this vma points to
     struct pte* virtmem_pte_ptr = &leafdirectory_pt0[VPN0(vma)];
     if (create != 0) {
-        leafdirectory_pt0[VPN0(vma)].flags |= PTE_V;
+        //leafdirectory_pt0[VPN0(vma)].flags |= PTE_V;
     }
     return virtmem_pte_ptr;
 }
@@ -286,14 +286,14 @@ void memory_space_reclaim(void) {
 
     // Loops through all three directories for every PTE without global tag G
     for (size_t pt2_idx = 0; pt2_idx < PTE_CNT; pt2_idx++) {
-        if (prev_pt2[pt2_idx].flags & PTE_V != 0  && prev_pt2[pt2_idx].ppn != NULL) {
+        if ((prev_pt2[pt2_idx].flags & PTE_V) != 0  && (prev_pt2[pt2_idx].flags & PTE_X) == 0 && (prev_pt2[pt2_idx].flags & PTE_R) == 0 && (prev_pt2[pt2_idx].flags & PTE_W) == 0) {
             struct pte* subdirectory_pt1 = pagenum_to_pageptr(prev_pt2[pt2_idx].ppn);
             for (size_t pt1_idx = 0; pt1_idx < PTE_CNT; pt1_idx++) {
-                if (subdirectory_pt1[pt1_idx].flags & PTE_V != 0 && subdirectory_pt1[pt1_idx].ppn != NULL) {
+                if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
-                        if (leafdirectory_pt0[pt0_idx].flags & PTE_V != 0 && leafdirectory_pt0[pt0_idx].ppn != NULL) {
-                            if (leafdirectory_pt0[pt0_idx].flags & PTE_G == 0) {
+                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V != 0)) {
+                            if ((leafdirectory_pt0[pt0_idx].flags & PTE_G) == 0) {
                                 if (tail_free_list == NULL) {
                                     tail_free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                     free_list = tail_free_list;
@@ -307,13 +307,13 @@ void memory_space_reclaim(void) {
                             }
                         }
                     }
-                    if (subdirectory_pt1[pt1_idx].flags & PTE_G == 0) {
+                    if ((subdirectory_pt1[pt1_idx].flags & PTE_G) == 0) {
                         memory_free_page(leafdirectory_pt0);
                         sfence_vma();
                     }
                 }
             }
-            if (prev_pt2[pt2_idx].flags & PTE_G == 0) {
+            if ((prev_pt2[pt2_idx].flags & PTE_G) == 0) {
                 memory_free_page(subdirectory_pt1);
                 sfence_vma();
             }
@@ -331,55 +331,44 @@ void * memory_alloc_page(void) {
     union linked_page * physical_mem = free_list;
     free_list = free_list->next;
 
-    return physical_mem;
+    return (void*)physical_mem;
 }
 
 void memory_free_page(void * pp) {
-    union linked_page * tail_free_list = free_list;
-    if (tail_free_list != NULL) {
-        while (tail_free_list->next != NULL) {
-            if (tail_free_list == pp) {
-                panic("Address Not Previously Allocated\n");
-            }
-            tail_free_list = tail_free_list->next;
-        }
-    }
-    if (tail_free_list == NULL) {
-        tail_free_list = (union linked_page *)pp;
-        free_list = tail_free_list;
-    } else {
-        tail_free_list->next = (union linked_page *)pp;
-        tail_free_list->next->next = NULL;
-    }
-    struct pte* free_pte = (struct pte*)walk_pt(active_space_root(), pp, 0);
-    free_pte->flags &= 0;
-    free_pte->ppn &= 0;
+    union linked_page* freed_ppage = (union linked_page*)pp;
+    freed_ppage->next = free_list;
+    free_list = freed_ppage;
+    // struct pte* free_pte = (struct pte*)walk_pt(active_space_root(), pp, 0);
+    // free_pte->flags &= 0;
+    // free_pte->ppn &= 0;
     sfence_vma();
 }
 
 void * memory_alloc_and_map_page (uintptr_t vma, uint_fast8_t rwxug_flags) {
-    uintptr_t newly_allocated = (uintptr_t *)(memory_alloc_page());
-
+    uintptr_t newly_allocated = memory_alloc_page();
+    //vma = round_up_ptr(vma, PAGE_SIZE);
     struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), vma, CREATE_PTE);
     dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
     dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
+    // kprintf("assigning physical addr %x to virtual mem addr %x \n", newly_allocated, vma);
     sfence_vma();
-    return vma;
+    return (void*)vma;
 }
 
 void * memory_alloc_and_map_range (uintptr_t vma, size_t size, uint_fast8_t rwxug_flags) {
-    vma = round_up_ptr(vma, PAGE_SIZE);
+    //vma = round_up_ptr(vma, PAGE_SIZE);
     size = round_up_size(size, PAGE_SIZE);
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
         uintptr_t cur_vma = vma + addr_idx;
-        uintptr_t newly_allocated = (uintptr_t *)(memory_alloc_page());
+        // cur_vma = memory_alloc_and_map_page(cur_vma, rwxug_flags);
+        uintptr_t newly_allocated = memory_alloc_page();
         struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, CREATE_PTE);
         dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
         dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
-        kprintf("assigning physical addr %x to virtual mem addr %x \n", newly_allocated, cur_vma);
+        // kprintf("assigning physical addr %x to virtual mem addr %x \n", newly_allocated, cur_vma);
         sfence_vma();
     }
-    return vma;
+    return (void*)vma;
 }
 
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags) {
@@ -393,7 +382,6 @@ void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_fl
     size = round_up_size(size, PAGE_SIZE);
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
         uintptr_t cur_vma = vp + addr_idx;
-        
         struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, 0);
         dest_pte->flags = 0;
         dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
@@ -419,7 +407,7 @@ void memory_unmap_and_free_user(void) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
                         if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != NULL && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
-                            if (leafdirectory_pt0[pt0_idx].flags & PTE_U != 0) {
+                            if ((leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
                                 if (tail_free_list == NULL) {
                                     tail_free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                     free_list = tail_free_list;
@@ -448,14 +436,8 @@ void memory_unmap_and_free_user(void) {
 }
 
 void memory_handle_page_fault(const void * vptr) {
-    if (vptr >= USER_START_VMA && vptr <= USER_END_VMA) {
-        struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), vptr, CREATE_PTE);
-        uintptr_t newly_allocated = (uintptr_t *)(memory_alloc_page());
-        if (dest_pte->ppn != NULL) {
-            memory_free_page(dest_pte->ppn);
-        }
-        dest_pte->ppn = newly_allocated;
-        dest_pte->flags |= PTE_V;
+    if ((vptr >= USER_START_VMA) && (vptr <= USER_END_VMA)) {
+        memory_alloc_and_map_page(vptr, PTE_R | PTE_W | PTE_U);
         sfence_vma();
     } else {
         panic("VPTR Cannot be Allocated\n");
