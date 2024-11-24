@@ -272,6 +272,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     // read the file_struct to perform write
     struct inode_t * file_struct = kmalloc(sizeof(struct inode_t));
     ioread_full(system_io, file_struct, FS_BLKSZ);
+    if (write_position + n > file_struct->byte_len) {
+        n = file_struct->byte_len - write_position;
+    }
 
     // determine how many cycles to go through, and the remainder bytes to write after block-size writes have finished
     size_t leading = write_position % FS_BLKSZ; 
@@ -365,7 +368,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     struct inode_t * file_struct = kmalloc(sizeof(struct inode_t));
     ioread_full(system_io, file_struct, FS_BLKSZ);
     if (read_position + n > file_struct->byte_len) {
-        return -EFILESYS;
+        n = file_struct->byte_len - read_position;
     }
 
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished

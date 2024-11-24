@@ -26,15 +26,8 @@ static int sysexit(void) {
     return 0;
 }
 
-// Get input from the user
-static int sysmsgin(char * msg, size_t n) {
-    console_getsn(msg, n);
-    return 0;
-}
-
 // Prints msg to the console.
 static int sysmsgout(const char *msg) {
-    // kprintf("enter syscall msgout\n");
     // validate string
     int result;
 
@@ -43,7 +36,7 @@ static int sysmsgout(const char *msg) {
     if (result != 0)
         return result;
 
-    console_puts(msg);
+    kprintf("Thread <%s:%d> says: %s\n", thread_name(running_thread()), running_thread(), msg);
     return 0;
 }
 
@@ -147,7 +140,7 @@ static long sysread(int fd, void *buf, size_t bufsz) {
 
     validate_result = memory_validate_vptr_len(buf, bufsz, PTE_U | PTE_W);
 
-    if (validate_result != 1)
+    if (validate_result != 0)
         return validate_result;
 
     struct process * curproc = current_process();
@@ -224,19 +217,19 @@ static int sysexec(int fd) {
     if (curproc == NULL)
         return -ENOENT;
 
-    if (fd >= MAX_OPEN_FILE_CT)
+    if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
     // fd < 0 require the next available file descriptor
-    if (fd < 0) {
-        for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
-            if (curproc->iotab[fd] != NULL)
-                break;
-        }
+    // if (fd < 0) {
+    //     for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
+    //         if (curproc->iotab[fd] != NULL)
+    //             break;
+    //     }
 
-        if (fd == MAX_OPEN_FILE_CT)
-            return -ENOENT;
-    }
+    //     if (fd == MAX_OPEN_FILE_CT)
+    //         return -ENOENT;
+    // }
 
     struct io_intf * exeio = curproc->iotab[fd];
 
@@ -259,9 +252,6 @@ void syscall_handler(struct trap_frame * tfr) {
             break;
         case SYSCALL_MSGOUT:
             tfr->x[TFR_A0] = sysmsgout((const char *) tfr->x[TFR_A0]);
-            break;
-        case SYSCALL_MSGIN:
-            tfr->x[TFR_A0] = sysmsgin((char *) tfr->x[TFR_A0], tfr->x[TFR_A1]);
             break;
         case SYSCALL_DEVOPEN:
             tfr->x[TFR_A0] = sysdevopen(tfr->x[TFR_A0], (const char *) tfr->x[TFR_A1], tfr->x[TFR_A2]);

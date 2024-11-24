@@ -2,10 +2,13 @@
 
 
 rm kfs.raw
+cd ../user
+make clean
+make
 cd ../util
 make clean
 make
-./mkfs kfs.raw ../user/bin/init0 ../user/bin/init1 ../user/bin/init2 ../user/bin/trek
+./mkfs kfs.raw ../user/bin/init0 ../user/bin/init1 ../user/bin/init2 ../user/bin/trek ../user/bin/greeting
 mv kfs.raw ../kern
 cd ../kern
 bash mkcomp.sh kfs.raw

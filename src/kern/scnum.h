@@ -6,7 +6,6 @@
 
 #define SYSCALL_EXIT    0
 #define SYSCALL_MSGOUT  1
-#define SYSCALL_MSGIN   2
 
 #define SYSCALL_DEVOPEN 10
 #define SYSCALL_FSOPEN  11
