@@ -319,7 +319,7 @@ void memory_space_reclaim(void) {
             }
         }
     }
-    memory_free_page(prev_pt2);
+    // memory_free_page(prev_pt2);
     sfence_vma();
 }
 

@@ -71,11 +71,11 @@ static int sysdevopen(int fd, const char *name, int instno) {
 
     struct io_intf * device_io = curproc->iotab[fd];
 
-    if (device_io == NULL)
-        return -EIO;
+    // if (device_io == NULL)
+    //     return -EIO;
 
     int result = device_open(&device_io, name, instno);
-
+    curproc->iotab[fd] = device_io;
     if (result < 0)
         return -ENODEV;
 
@@ -106,11 +106,11 @@ static int sysfsopen(int fd, const char *name) {
 
     struct io_intf * file_io = curproc->iotab[fd];
 
-    if (file_io == NULL)
-        return -EIO;
+    // if (file_io == NULL)
+    //     return -EIO;
 
     int result = fs_open(name, &file_io);
-
+    curproc->iotab[fd] = file_io;
     if (result < 0)
         return -ENOENT;
 
