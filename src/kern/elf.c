@@ -207,14 +207,14 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
            
             // kprintf("allocating size of %d\n", elf_phdr.p_filesz);
             uint_fast8_t pte_flags = flag_convert(elf_phdr.p_flags);
-            uintptr_t allocated_page = (uintptr_t)(memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_W));            
+            memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_W);            
             
             // Now the address is within valid range
             // First we get position
             ioseek(io,elf_phdr.p_offset);
             // kprintf("try to allocate to %x\r\n", elf_phdr.p_vaddr);
             long prog_result = ioread_full(io, (void *)elf_phdr.p_vaddr, elf_phdr.p_filesz);
-            memory_set_range_flags(elf_phdr.p_vaddr, elf_phdr.p_filesz, pte_flags | PTE_U);
+            memory_set_range_flags((void*)elf_phdr.p_vaddr, elf_phdr.p_filesz, pte_flags | PTE_U);
             if (prog_result < elf_phdr.p_filesz){
                 //  failure in program seg load
                 return -PROG_SEC_READ;

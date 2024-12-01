@@ -134,6 +134,7 @@ void fs_close(struct io_intf* io) {
  */
 int fs_getlen(file_t* fd, void* arg) {
     *(int*)arg = fd->file_size;
+    console_printf("filesize%d\n", fd->file_size);
     return *(int*)arg;
 }
 

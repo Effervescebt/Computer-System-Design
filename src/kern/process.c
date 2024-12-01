@@ -45,6 +45,7 @@ char procmgr_initialized = 0;
 // EXPORTED FUNCTION DEFINITIONS
 //
 #include "process.h"
+#include "halt.h"
 #define ENOMEM 11
 
 /**
@@ -105,7 +106,7 @@ int process_exec(struct io_intf * exeio){
     // This is the staring pt of user stack
     uintptr_t usp = USER_STACK_VMA;
     // Now change to user mode
-    thread_jump_to_user(usp, entry_point);
+    thread_jump_to_user(usp, (uintptr_t)entry_point);
     console_printf("Fail to U mode\n");
     return -EINVAL;
 }

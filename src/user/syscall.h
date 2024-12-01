@@ -7,7 +7,6 @@
 #include <stddef.h>
 
 extern void __attribute__ ((noreturn)) _exit(void);
-extern void _msgin(char * msg, size_t n);
 extern void _msgout(const char * msg);
 extern int _close(int fd);
 extern long _read(int fd, void * buf, size_t bufsz);

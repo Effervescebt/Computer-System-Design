@@ -149,7 +149,7 @@ void memory_init(void) {
     const void * const rodata_start = _kimg_rodata_start;
     const void * const rodata_end = _kimg_rodata_end;
     const void * const data_start = _kimg_data_start;
-    union linked_page * page;
+    // union linked_page * page;
     void * heap_start;
     void * heap_end;
     size_t page_cnt;
@@ -276,12 +276,12 @@ void memory_init(void) {
 
 void memory_space_reclaim(void) {
     uintptr_t prev_mtag = memory_space_switch(main_mtag);
-    union linked_page* tail_free_list = free_list;
-    if (tail_free_list != NULL) {
-        while (tail_free_list->next != NULL) {
-            tail_free_list = tail_free_list->next;
-        }
-    }
+    // union linked_page* tail_free_list = free_list;
+    // if (tail_free_list != NULL) {
+    //     while (tail_free_list->next != NULL) {
+    //         tail_free_list = tail_free_list->next;
+    //     }
+    // }
     struct pte* prev_pt2 = pagenum_to_pageptr(prev_mtag);
 
     // Loops through all three directories for every PTE without global tag G
@@ -292,14 +292,15 @@ void memory_space_reclaim(void) {
                 if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
-                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V != 0)) {
+                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0) {
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_G) == 0) {
-                                if (tail_free_list == NULL) {
-                                    tail_free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    free_list = tail_free_list;
+                                if (free_list == NULL) {
+                                    free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
+                                    //free_list = tail_free_list;
                                 } else {
-                                    tail_free_list->next = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    tail_free_list = tail_free_list->next;
+                                    union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
+                                    new_free_page->next = free_list;
+                                    free_list = new_free_page;
                                 }
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
                                 leafdirectory_pt0[pt0_idx].flags &= 0;
@@ -345,7 +346,7 @@ void memory_free_page(void * pp) {
 }
 
 void * memory_alloc_and_map_page (uintptr_t vma, uint_fast8_t rwxug_flags) {
-    uintptr_t newly_allocated = memory_alloc_page();
+    const void * newly_allocated = memory_alloc_page();
     //vma = round_up_ptr(vma, PAGE_SIZE);
     struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), vma, CREATE_PTE);
     dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
@@ -361,7 +362,7 @@ void * memory_alloc_and_map_range (uintptr_t vma, size_t size, uint_fast8_t rwxu
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
         uintptr_t cur_vma = vma + addr_idx;
         // cur_vma = memory_alloc_and_map_page(cur_vma, rwxug_flags);
-        uintptr_t newly_allocated = memory_alloc_page();
+        const void * newly_allocated = memory_alloc_page();
         struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, CREATE_PTE);
         dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
         dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
@@ -372,7 +373,7 @@ void * memory_alloc_and_map_range (uintptr_t vma, size_t size, uint_fast8_t rwxu
 }
 
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags) {
-    struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), vp, CREATE_PTE);
+    struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), (uintptr_t) vp, CREATE_PTE);
     dest_pte->flags = 0;
     dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
     sfence_vma();
@@ -381,7 +382,7 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags) {
 void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_flags) {
     size = round_up_size(size, PAGE_SIZE);
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
-        uintptr_t cur_vma = vp + addr_idx;
+        uintptr_t cur_vma = (uintptr_t)vp + addr_idx;
         struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, 0);
         dest_pte->flags = 0;
         dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
@@ -390,12 +391,12 @@ void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_fl
 }
 
 void memory_unmap_and_free_user(void) {
-    union linked_page* tail_free_list = free_list;
-    if (tail_free_list != NULL) {
-        while (tail_free_list->next != NULL) {
-            tail_free_list = tail_free_list->next;
-        }
-    }
+    // union linked_page* tail_free_list = free_list;
+    // if (tail_free_list != NULL) {
+    //     while (tail_free_list->next != NULL) {
+    //         tail_free_list = tail_free_list->next;
+    //     }
+    // }
 
     // Loops through all three directories for every PTE with user tag U
     struct pte* cur_active_pt2 = active_space_root();
@@ -406,14 +407,15 @@ void memory_unmap_and_free_user(void) {
                 if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
-                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != NULL && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
+                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != 0 && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
-                                if (tail_free_list == NULL) {
-                                    tail_free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    free_list = tail_free_list;
+                                if (free_list == NULL) {
+                                    free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
+                                    //free_list = tail_free_list;
                                 } else {
-                                    tail_free_list->next = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    tail_free_list = tail_free_list->next;
+                                    union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
+                                    new_free_page->next = free_list;
+                                    free_list = new_free_page;
                                 }
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
                                 leafdirectory_pt0[pt0_idx].flags &= 0;
@@ -436,8 +438,8 @@ void memory_unmap_and_free_user(void) {
 }
 
 void memory_handle_page_fault(const void * vptr) {
-    if ((vptr >= USER_START_VMA) && (vptr <= USER_END_VMA)) {
-        memory_alloc_and_map_page(vptr, PTE_R | PTE_W | PTE_U);
+    if (((size_t)vptr >= USER_START_VMA) && ((size_t)vptr <= USER_END_VMA)) {
+        memory_alloc_and_map_page((uintptr_t)vptr, PTE_R | PTE_W | PTE_U);
         sfence_vma();
     } else {
         panic("VPTR Cannot be Allocated\n");
