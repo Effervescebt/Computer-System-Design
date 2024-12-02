@@ -318,8 +318,7 @@ void memory_space_reclaim(void) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                 } else {
                                     union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    new_free_page->next = free_list;
-                                    free_list = new_free_page;
+                                    memory_free_page(new_free_page);
                                 }
                                 // unmap page
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
@@ -421,11 +420,7 @@ void * memory_alloc_and_map_range (uintptr_t vma, size_t size, uint_fast8_t rwxu
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
         uintptr_t cur_vma = vma + addr_idx;
         // same process as in memory_alloc_and_map_page
-        // cur_vma = memory_alloc_and_map_page(cur_vma, rwxug_flags);
-        const void * newly_allocated = memory_alloc_page();
-        struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, CREATE_PTE);
-        dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
-        dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
+        cur_vma = (uintptr_t)memory_alloc_and_map_page(cur_vma, rwxug_flags);
         sfence_vma();
     }
     return (void*)vma;
@@ -489,8 +484,7 @@ void memory_unmap_and_free_user(void) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                 } else {
                                     union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    new_free_page->next = free_list;
-                                    free_list = new_free_page;
+                                    memory_free_page(new_free_page);
                                 }
                                 // unmap the page
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
