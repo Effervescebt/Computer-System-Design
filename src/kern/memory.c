@@ -110,6 +110,17 @@ static struct pte main_pt0_0x80000[PTE_CNT]
 // EXPORTED FUNCTION DEFINITIONS
 // 
 
+/*
+ * @brief: walks through page table and return the leaf pte address
+ * @specific: Use bit masks(VPN0/1/2) to move around the table
+ * 
+ * @param: 
+ * struct pte* root: current root table
+ * uintptr_t vma: virtual address to look for
+ * int create: if virtual address never allocated
+ * @return val:
+ * struct pte* virtmem_pte_ptr: corresponding leaf pte in page table
+ */
 struct pte* walk_pt(struct pte* root, uintptr_t vma, int create) {
     if (create != 0) {
         if ((root[VPN2(vma)].flags & PTE_V) == 0) {
@@ -143,6 +154,12 @@ struct pte* walk_pt(struct pte* root, uintptr_t vma, int create) {
     return virtmem_pte_ptr;
 }
 
+/*
+ * @brief: initialize memory by convention
+ * @specific: Sets up page tables and performs virtual-to-physical 1:1 mapping of the kernel megapage. 
+ * Enables Sv39 paging. Initializes the heap memory manager.
+ * Puts free pages on the free pages list. Allows S mode access of U mode memory.
+ */
 void memory_init(void) {
     const void * const text_start = _kimg_text_start;
     const void * const text_end = _kimg_text_end;
@@ -274,6 +291,13 @@ void memory_init(void) {
     memory_initialized = 1;
 }
 
+/*
+ * @brief: reclaim memory form previous active memory space
+ * @specific: Switch the active memory space to the main memory space and reclaims the memory space that was active on entry. 
+ * All physical pages mapped by the memory space that are not part of the global mapping are reclaimed.
+ * Walks through tables and free all level 0 & 1 tables(intermediate & leaf), free all leaf ptes without flag G
+ * Does not free root page table
+ */
 void memory_space_reclaim(void) {
     uintptr_t prev_mtag = memory_space_switch(main_mtag);
     // union linked_page* tail_free_list = free_list;

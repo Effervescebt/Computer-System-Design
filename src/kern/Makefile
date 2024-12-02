@@ -76,6 +76,12 @@ run-buggy: mem_test_buggy.elf
 debug-buggy: mem_test_buggy.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
+mem_test.elf: $(CORE_OBJS) virt_memory_test.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-mem_test: mem_test.elf
+	$(QEMU) $(QEMUOPTS)
+
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm
