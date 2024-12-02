@@ -1,0 +1,6 @@
+#! /usr/bin/bash
+
+
+make clean
+make kernel.elf
+make run-kernel
