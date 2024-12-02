@@ -537,14 +537,14 @@ void memory_handle_page_fault(const void * vptr) {
  * @brief: Ensure that the virtual pointer provided (vp) points to a mapped region of size len and has at least the specified flags.
  */
 int memory_validate_vptr_len (const void * vp, size_t len, uint_fast8_t rwxug_flags) {
-    struct pte* dest_pte = walk_pt(active_space_root(), vp, 0);
+    struct pte* dest_pte = walk_pt(active_space_root(), (uintptr_t)vp, 0);
     size_t rounded_length = round_up_size(len, PAGE_SIZE);
 
     for (size_t vmem_idx = 0; vmem_idx < rounded_length; vmem_idx += PAGE_SIZE) {
-        if (dest_pte->ppn != NULL && (dest_pte->flags & PTE_V) != 0 && ((dest_pte->flags & rwxug_flags) == rwxug_flags)) {
+        if (dest_pte->ppn != 0 && (dest_pte->flags & PTE_V) != 0 && ((dest_pte->flags & rwxug_flags) == rwxug_flags)) {
             continue;
         } else {
-            -EACCESS;
+            return -EACCESS;
         }
     }
 
