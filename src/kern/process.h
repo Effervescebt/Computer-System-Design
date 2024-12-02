@@ -42,6 +42,7 @@ extern struct process * proctab[];
 
 extern void procmgr_init(void);
 extern int process_exec(struct io_intf * exeio);
+extern int process_exec_for_test_use(struct io_intf * exeio, uint8_t rwxug_flags);
 
 extern void __attribute__ ((noreturn)) process_exit(void);
 

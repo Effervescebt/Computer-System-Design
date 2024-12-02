@@ -227,3 +227,127 @@ int elf_load(struct io_intf *io, void (**entryptr)(void)){
     // console_printf("checkpoint 2 reached, Entry point address: %p \n", *entryptr);
     return 0;
 }
+
+
+/* @brief: This function mainly loads an executable ELF file into memory and returns the entry point
+@arg: arg1: io interface from which to load the elf 
+    arg2: pointer to void(*entry)(struct io_intf *io), 
+    which is a function pointer elf_load fills in w/ the address of the entry point
+
+This function first check the validity of the elf header to make sure it is actually executable file.
+Then iterate over all the program headers. Remember to check the type of program header first and then the address range
+Then we read the contents within individual program header and set the entry point (in elf header!!!) so that we can start 
+    execute the program from the entry pointer
+
+@return: int: 0 if successful, negative values if an error occurs
+*/
+int elf_load_for_test_use(struct io_intf *io, void (**entryptr)(void), uint8_t rwxug_flags){
+    // We should first check the validity of the passed ELF file
+    // validating checklist: Magic, Class, Data, ABI, Machine
+
+    // First create an empty buf and use io_read
+    // size of elf header should be 64 bit
+    Elf64_Ehdr elf_header; // Initialize the elf header
+    // char* buffer = NULL; // Initialize the empty buffer
+    // console_printf("elf header initialize successfully\n");
+    long result = ioread_full(io, &elf_header, sizeof(Elf64_Ehdr));
+    // console_printf("Result of ioread: %ld\n", result);
+    unsigned char *buffer = elf_header.e_ident;
+    // console_printf("checkpoint 0 reached, Entry point address: %p\n",(void *)elf_header.e_entry);
+    // Case 1: Failure in reading
+    if (result < 0 || buffer == NULL){
+        // failure in data reading
+        return -READ_FAILURE;
+    }
+    //Case 2: insufficient data
+    if (result < sizeof(Elf64_Ehdr)){
+        // insufficient read data
+        return -DATA_SHORTAGE;
+    }
+
+    // Case 3: magic check
+    if (buffer[EI_MAG0] != magic_numb_1 || buffer[EI_MAG1] != magic_numb_2 ||
+        buffer[EI_MAG2] != magic_numb_3 || buffer[EI_MAG3] != magic_numb_4){
+            // failure in magic check
+            return -MAGIC;
+        }
+
+    // Case 4: class check
+    if (buffer[EI_CLASS] != ELF64){
+        // incorrect 64-bit format
+        return -CLASS;
+    }
+
+    // Case 5: data check
+    if(buffer[EI_DATA] != EI_ENDIAN){
+        // -5 indicates incorrect endian (should be little endian)
+        return -LITTLE_ENDIAN;
+    }
+
+    // Case 6: ABI check
+    if (buffer[EI_ABI] != System_V){
+        // incorrect ABI
+        return -ABI;
+    }
+
+    // Case 7: machine check
+    if(elf_header.e_machine != RISCV){
+        // incorrect machine
+        return -MACHINE;
+    }
+    // Now we have reached the end of valid check (at least I think so)
+    // Next step would be processing the program headers
+    // Notice that The loader should only load program header entries of type PT_LOAD
+    // Now iterate all the program header entries
+    for (int i = 0; i < elf_header.e_phnum; i++){
+        // Initialize a new pointer of program header
+        Elf64_Phdr elf_phdr;
+        ioseek(io, elf_header.e_phoff + i * elf_header.e_phentsize);
+        // Read data into phdr
+        long result_2 = ioread_full(io, (void *)&elf_phdr, sizeof(Elf64_Phdr));
+        if (result_2 < 0){
+            // read failure in program header
+            return -PROG_READ_FAILURE;
+        }
+        // check p_type here given we only load PY_LOAD
+        if(elf_phdr.p_type == PT_LOAD){
+            // check address 
+            if (elf_phdr.p_vaddr < USER_START_VMA || elf_phdr.p_vaddr + elf_phdr.p_filesz > USER_END_VMA) {
+                return -PROG_ADDR;
+            }
+            // struct pte* elf_entry = walk_pt(active_space_root() , elf_phdr.p_vaddr, 1);
+           
+            // kprintf("allocating size of %d\n", elf_phdr.p_filesz);
+            uint_fast8_t pte_flags = flag_convert(elf_phdr.p_flags);
+            memory_alloc_and_map_range(elf_phdr.p_vaddr, elf_phdr.p_filesz, PTE_R | PTE_W);            
+            
+            // Now the address is within valid range
+            // First we get position
+            ioseek(io,elf_phdr.p_offset);
+            // kprintf("try to allocate to %x\r\n", elf_phdr.p_vaddr);
+            long prog_result = ioread_full(io, (void *)elf_phdr.p_vaddr, elf_phdr.p_filesz);
+
+            switch (rwxug_flags)
+            {
+            case PTE_X:
+                kprintf("setting flag as %x, which eliminates PTE_X flag\n", (pte_flags | PTE_U) & ~PTE_X);
+                memory_set_range_flags((void*)elf_phdr.p_vaddr, elf_phdr.p_filesz, (pte_flags | PTE_U) & ~PTE_X);
+                break;
+            
+            default:
+                memory_set_range_flags((void*)elf_phdr.p_vaddr, elf_phdr.p_filesz, pte_flags | PTE_U);
+                break;
+            }
+
+            if (prog_result < elf_phdr.p_filesz){
+                //  failure in program seg load
+                return -PROG_SEC_READ;
+            }
+        }
+    }
+    // Now we need to move read program seg to entry point
+    // console_printf("checkpoint 1 reached\n");
+    *entryptr = (void*)(struct io_intf*)elf_header.e_entry;   
+    // console_printf("checkpoint 2 reached, Entry point address: %p \n", *entryptr);
+    return 0;
+}

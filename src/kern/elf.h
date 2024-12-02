@@ -23,5 +23,7 @@ uint_fast8_t flag_convert(uint32_t flags);
 
 int elf_load(struct io_intf *io, void (**entryptr)(void));
 
+int elf_load_for_test_use(struct io_intf *io, void (**entryptr)(void), uint8_t rwxug_flags);
+
 //           _ELF_H_
 #endif

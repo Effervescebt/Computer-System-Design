@@ -112,6 +112,44 @@ int process_exec(struct io_intf * exeio){
 }
 
 /**
+ * @brief: This function takes I/O interface and the execute the program it refer to.
+ * @param: exeio: the passed I/O interface
+ * 
+ * This function performs the following steps:
+ * 1. Unmap virtual memory mapping to other user process
+ * 2. Create a new memory space(not needed for this cp)
+ * 3. Load the executable from the passed-in I/O interface
+ * 4. Start the associated thread in U mode
+ * 
+ * @return: error code or 0 for success
+ */
+int process_exec_for_test_use(struct io_intf * exeio, uint8_t rwxug_flags){
+    // First check arg
+    if (!exeio){
+        return -EINVAL;
+    }
+    // Then unmap virtual memory mapping of other user process
+    memory_unmap_and_free_user();
+    
+    // Initialize entry point
+    void (*entry_point)(void) = NULL;
+    // Run elf_load to update entry_point
+    int elf_result = elf_load_for_test_use(exeio, &entry_point, rwxug_flags);
+    // Check elf_result
+    if (elf_result < 0) {       
+        return elf_result;                    
+    }
+    // console_printf("Elf successfully loaded. Entry point: %p\n", entry_point);
+
+    // This is the staring pt of user stack
+    uintptr_t usp = USER_STACK_VMA;
+    // Now change to user mode
+    thread_jump_to_user(usp, (uintptr_t)entry_point);
+    console_printf("Fail to U mode\n");
+    return -EINVAL;
+}
+
+/**
  * @brief: This function clean up a finished process
  * 
  * Relase following: 1. Process memory space

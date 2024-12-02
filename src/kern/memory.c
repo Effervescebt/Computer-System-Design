@@ -327,7 +327,7 @@ void memory_space_reclaim(void) {
 void * memory_alloc_page(void) {
     // Extract the head of free_list thus make it the pma to allocate
     if (free_list == NULL) {
-        panic("No Available Free Space\n");
+        panic("No Available Free Space: Probably Caused by Infinite Access to Non-Permitted Page\n");
     }
     union linked_page * physical_mem = free_list;
     free_list = free_list->next;
@@ -442,7 +442,7 @@ void memory_handle_page_fault(const void * vptr) {
         memory_alloc_and_map_page((uintptr_t)vptr, PTE_R | PTE_W | PTE_U);
         sfence_vma();
     } else {
-        panic("VPTR Cannot be Allocated\n");
+        panic("Memory Handle Page Fault Exited Anomaly\n");
     }
 }
 

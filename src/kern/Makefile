@@ -32,6 +32,7 @@ CORE_OBJS = \
 	kfs.o \
 	process.o \
 	elf.o \
+
 	# Add more object files here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
@@ -64,6 +65,15 @@ run-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS)
 
 debug-kernel: kernel.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+mem_test_buggy.elf: $(CORE_OBJS) virt_memory_bugtest.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-buggy: mem_test_buggy.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug-buggy: mem_test_buggy.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
 clean:
