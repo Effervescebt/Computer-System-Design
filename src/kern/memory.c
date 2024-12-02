@@ -299,13 +299,8 @@ void memory_init(void) {
  * Does not free root page table
  */
 void memory_space_reclaim(void) {
+    // Switch memory space and obtain the previous level 2 page table
     uintptr_t prev_mtag = memory_space_switch(main_mtag);
-    // union linked_page* tail_free_list = free_list;
-    // if (tail_free_list != NULL) {
-    //     while (tail_free_list->next != NULL) {
-    //         tail_free_list = tail_free_list->next;
-    //     }
-    // }
     struct pte* prev_pt2 = pagenum_to_pageptr(prev_mtag);
 
     // Loops through all three directories for every PTE without global tag G
@@ -317,27 +312,30 @@ void memory_space_reclaim(void) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
                         if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0) {
+                            // if leaf exists and isn't global, free the page
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_G) == 0) {
                                 if (free_list == NULL) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    //free_list = tail_free_list;
                                 } else {
                                     union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                     new_free_page->next = free_list;
                                     free_list = new_free_page;
                                 }
+                                // unmap page
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
                                 leafdirectory_pt0[pt0_idx].flags &= 0;
                                 sfence_vma();
                             }
                         }
                     }
+                    // free previous level 0 page table
                     if ((subdirectory_pt1[pt1_idx].flags & PTE_G) == 0) {
                         memory_free_page(leafdirectory_pt0);
                         sfence_vma();
                     }
                 }
             }
+            // free previoius level 1 page table
             if ((prev_pt2[pt2_idx].flags & PTE_G) == 0) {
                 memory_free_page(subdirectory_pt1);
                 sfence_vma();
@@ -348,54 +346,99 @@ void memory_space_reclaim(void) {
     sfence_vma();
 }
 
+/*
+ * @brief: allocate a physical page
+ * @specific: Allocate a physical page of memory using the free pages list. Returns the virtual address of the direct- mapped page as a void*. 
+ * Panics if there are no free pages available. ezheap.c will call this function when the heap is full.
+ * 
+ * @return val:
+ * void * physical_mem: a physical page extracted from free_list
+ */
 void * memory_alloc_page(void) {
-    // Extract the head of free_list thus make it the pma to allocate
     if (free_list == NULL) {
         panic("No Available Free Space: Probably Caused by Infinite Access to Non-Permitted Page\n");
     }
+    // Extract the head of free_list thus make it the pma to allocate
     union linked_page * physical_mem = free_list;
     free_list = free_list->next;
 
     return (void*)physical_mem;
 }
 
+/*
+ * @brief: frees a physical page
+ * @specific: Return a physical memory page to the physical page allocator (free pages list). 
+ * The page must have been previously allocated by memory alloc page.
+ * Function called by supervisor, so its caller makes sure only allocated pages will be its input
+ * 
+ * @param:
+ * void * pp: a physical page to return to free_list
+ */
 void memory_free_page(void * pp) {
     union linked_page* freed_ppage = (union linked_page*)pp;
     freed_ppage->next = free_list;
     free_list = freed_ppage;
-    // struct pte* free_pte = (struct pte*)walk_pt(active_space_root(), pp, 0);
-    // free_pte->flags &= 0;
-    // free_pte->ppn &= 0;
     sfence_vma();
 }
 
+/*
+ * @brief: allocate a free page and map it in the page table
+ * @specific: Allocate a single physical page and maps a virtual address to it with provided flags. Returns the mapped virtual memory address.
+ * Set A/D/V flags along with the input R/W/X/U/G flags
+ * 
+ * @param: 
+ * uintptr_t vma: virtual memory that'll map to physical page
+ * uint_fast8_t rwxug_flags: flags to set for current page
+ * @return val:
+ * void* vma: virtual memory address that have been allocated
+ */
 void * memory_alloc_and_map_page (uintptr_t vma, uint_fast8_t rwxug_flags) {
     const void * newly_allocated = memory_alloc_page();
-    //vma = round_up_ptr(vma, PAGE_SIZE);
+    // calls walk_pt with CREATE_PTE enabled to allocate potential tables
     struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), vma, CREATE_PTE);
     dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
     dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
-    // kprintf("assigning physical addr %x to virtual mem addr %x \n", newly_allocated, vma);
     sfence_vma();
     return (void*)vma;
 }
 
+/*
+ * @brief: allocates a range of pages
+ * @specific: Allocates the range of memory and maps a virtual address with the provided flags. 
+ * Returns the mapped virtual memory address.
+ * Sets flags just as in memory_alloc_and_map_page
+ * 
+ * @param:
+ * uintptr_t vma: start vma of page to be allocated
+ * size_t size: size to be allocated comes in bytes, round up then divide by 4096 gives page count
+ * uint_fast8_t rwxug_flags: flags to be set
+ * @return val:
+ * void* vma: start of virtual memory address that have been allocated
+ */
 void * memory_alloc_and_map_range (uintptr_t vma, size_t size, uint_fast8_t rwxug_flags) {
-    //vma = round_up_ptr(vma, PAGE_SIZE);
     size = round_up_size(size, PAGE_SIZE);
+    // round up size and loop to allocate pages
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
         uintptr_t cur_vma = vma + addr_idx;
+        // same process as in memory_alloc_and_map_page
         // cur_vma = memory_alloc_and_map_page(cur_vma, rwxug_flags);
         const void * newly_allocated = memory_alloc_page();
         struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), cur_vma, CREATE_PTE);
         dest_pte->flags |= rwxug_flags | PTE_A | PTE_D | PTE_V;
         dest_pte->ppn = pageptr_to_pagenum(newly_allocated);
-        // kprintf("assigning physical addr %x to virtual mem addr %x \n", newly_allocated, cur_vma);
         sfence_vma();
     }
     return (void*)vma;
 }
 
+/*
+ * @brief: set the flags for a specific page
+ * @specific: Sets the flags of the PTE associated with vp. Only works with 4 kB pages.
+ *
+ * @param:
+ * const void *vp: virtual pointer to the page
+ * uint8_t rwxug_flags: flags to be set
+ */
 void memory_set_page_flags(const void *vp, uint8_t rwxug_flags) {
     struct pte* dest_pte = (struct pte*)walk_pt(active_space_root(), (uintptr_t) vp, CREATE_PTE);
     dest_pte->flags = 0;
@@ -403,6 +446,15 @@ void memory_set_page_flags(const void *vp, uint8_t rwxug_flags) {
     sfence_vma();
 }
 
+/*
+ * @brief: set the flags for a range of pages
+ * @specific: Modify flags of all PTE within the specified virtual memory range. Only works with 4 kB pages.
+ *
+ * @param:
+ * const void *vp: virtual pointer to the first page
+ * size_t size: size comes in bytes, round up to get actual pages needed
+ * uint8_t rwxug_flags: flags to be set
+ */
 void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_flags) {
     size = round_up_size(size, PAGE_SIZE);
     for (size_t addr_idx = 0; addr_idx < size; addr_idx += PAGE_SIZE) {
@@ -414,14 +466,13 @@ void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_fl
     }
 }
 
+/*
+ * @brief: free and unmap user memory space
+ * @specific: Unmaps and frees ALL user space pages (that is, all pages with the U flag asserted) in the current memory space.
+ * Loops are similar with that in memory reclaim
+ * Also doesn't free root page table
+ */
 void memory_unmap_and_free_user(void) {
-    // union linked_page* tail_free_list = free_list;
-    // if (tail_free_list != NULL) {
-    //     while (tail_free_list->next != NULL) {
-    //         tail_free_list = tail_free_list->next;
-    //     }
-    // }
-
     // Loops through all three directories for every PTE with user tag U
     struct pte* cur_active_pt2 = active_space_root();
     for (size_t pt2_idx = 0; pt2_idx < PTE_CNT; pt2_idx++) {
@@ -432,27 +483,30 @@ void memory_unmap_and_free_user(void) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
                         if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != 0 && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
+                            // if leaf exists and belongs to user, free the page
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
                                 if (free_list == NULL) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
-                                    //free_list = tail_free_list;
                                 } else {
                                     union linked_page* new_free_page = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                     new_free_page->next = free_list;
                                     free_list = new_free_page;
                                 }
+                                // unmap the page
                                 leafdirectory_pt0[pt0_idx].ppn &= 0;
                                 leafdirectory_pt0[pt0_idx].flags &= 0;
                                 sfence_vma();
                             }
                         }
                     }
+                    // frees leaf page table
                     if ((subdirectory_pt1[pt1_idx].flags & PTE_U) != 0) {
                         memory_free_page(leafdirectory_pt0);
                         sfence_vma();
                     }
                 }
             }
+            // frees level 1, i.e. intermediate page table
             if ((cur_active_pt2[pt2_idx].flags & PTE_U) != 0) {
                 memory_free_page(subdirectory_pt1);
                 sfence_vma();
@@ -461,6 +515,15 @@ void memory_unmap_and_free_user(void) {
     }
 }
 
+/*
+ * @brief: handles page fault from user exception handler
+ * @specific: Handle a page fault at a virtual address. If vptr in user range, allocate a new page, otherwise panics.
+ * The system call this function when a store page fault is triggered by a user program.
+ * The page assigned to user must have flag U set
+ * 
+ * @param:
+ * const void * vptr: virtual memory where fault took place
+ */
 void memory_handle_page_fault(const void * vptr) {
     if (((size_t)vptr >= USER_START_VMA) && ((size_t)vptr <= USER_END_VMA)) {
         memory_alloc_and_map_page((uintptr_t)vptr, PTE_R | PTE_W | PTE_U);
@@ -470,10 +533,27 @@ void memory_handle_page_fault(const void * vptr) {
     }
 }
 
+/*
+ * @brief: Ensure that the virtual pointer provided (vp) points to a mapped region of size len and has at least the specified flags.
+ */
 int memory_validate_vptr_len (const void * vp, size_t len, uint_fast8_t rwxug_flags) {
+    struct pte* dest_pte = walk_pt(active_space_root(), vp, 0);
+    size_t rounded_length = round_up_size(len, PAGE_SIZE);
+
+    for (size_t vmem_idx = 0; vmem_idx < rounded_length; vmem_idx += PAGE_SIZE) {
+        if (dest_pte->ppn != NULL && (dest_pte->flags & PTE_V) != 0 && ((dest_pte->flags & rwxug_flags) == rwxug_flags)) {
+            continue;
+        } else {
+            -EACCESS;
+        }
+    }
+
     return 0;
 }
 
+/*
+ * @brief: Ensure that the virtual pointer provided (vs) contains a NUL-terminated string.
+ */
 int memory_validate_vstr (const char * vs, uint_fast8_t ug_flags) {
     return 0;
 }

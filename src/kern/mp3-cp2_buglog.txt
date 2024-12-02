@@ -1,0 +1,57 @@
+Nov.22 Fri
+I. Kernel runs directly into idle thread and never returned.
+->mark as solved
+modified plic and set all ctxno to 1, that threads finally stated working
+
+II. Stuck in process exec, fault occured
+->mark as solved
+didn't set R/W flags before reading elf contents, modified and entered next step
+
+III. Process_exit didn't call reclaim
+->mark as solved
+
+***
+IV. User free freed wrong pages, if statements didn't function.
+->mark as solved
+issue was in bitwise operands. == probably fired earlier than & and |. Added parentheses to all judgements and passed
+
+Nov.23 Sat
+V. Stuck in thread jump user
+->mark as solved
+entryptr in process exec when calling thread_jump_to_user was written as "&((uintptr_t *)entryptr)", deleted & and everything worked fine
+
+*** struggling bug
+VI. User program tried to allocate stack after elf_load but failed and ran forever. Free list used up.
+->mark as solved
+memory_handle_page_fault didn't set U_flag for the stack allocated. Hidden case. Set U flag for mapped pages and it worked.
+
+VII. Thread failure during switch & suspend self.
+->mark as solved
+didn't set tp to the thread_pointer stored in thread_stack_anchor, fixed on line 165 in trapasm.s
+
+VIII. Still thread failure
+->mark as solved
+process init didn't link process with thread but only did thread to process
+
+IX. After finishing init0, load access fault occured
+->mark as solved
+deleted the free pt2 line in reclaim, freeing the table cause all kernel image becoming dangling pointers.
+
+X. Running init2, failure in loading device and file
+->mark as solved
+an if statement telling if io in iotab is NULL fired the bug. Two statements in syscall fsopen and deviceopen deleted and it continued
+
+XI. io NULL after sysdevopen and sysfsopen
+->mark as solved
+didn't save io after obtaining from two open functions. Fixed twice by adding & and saving into iotab
+
+Nov.24 Sun
+
+XII. In syswrite and sysread, wrong if statement judging return value from memory extra credit functions.
+->mark as solved
+
+Dec.1 Sun
+
+XIII. Fault occured after trek exiting. Occured in iteration of free_list.
+->partially solved
+switch to inserting from list head and it worked. Yet issue not spotted, tricky hidden case.
