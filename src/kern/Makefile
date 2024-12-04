@@ -25,15 +25,13 @@ CORE_OBJS = \
 	uart.o \
 	virtio.o \
 	vioblk.o \
-	console.o \
+	kfs.o \
+	elf.o \
+	console.o\
 	excp.o \
+	process.o \
 	memory.o \
 	syscall.o \
-	kfs.o \
-	process.o \
-	elf.o \
-
-	# Add more object files here
 
 CFLAGS = -Wall -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += -mcmodel=medany -fno-pie -no-pie -march=rv64g -mabi=lp64d
@@ -46,8 +44,7 @@ QEMUOPTS += -machine virt -bios none -kernel $< -m 8M -nographic
 QEMUOPTS += -serial mon:stdio
 QEMUOPTS += -drive file=kfs.raw,id=blk0,if=none,format=raw
 QEMUOPTS += -device virtio-blk-device,drive=blk0
-QEMUOPTS += -serial pty
-QEMUOPTS += -monitor pty
+QEMUOPTS += -serial pty -serial pty # need a second screen for init5
 
 # try to generate a unique GDB port
 GDBPORT = $(shell expr `id -u` % 5000 + 25000)
@@ -66,21 +63,6 @@ run-kernel: kernel.elf
 
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-mem_test_buggy.elf: $(CORE_OBJS) virt_memory_bugtest.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-run-buggy: mem_test_buggy.elf
-	$(QEMU) $(QEMUOPTS)
-
-debug-buggy: mem_test_buggy.elf
-	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
-
-mem_test.elf: $(CORE_OBJS) virt_memory_test.o companion.o
-	$(LD) -T kernel.ld -o $@ $^
-
-run-mem_test: mem_test.elf
-	$(QEMU) $(QEMUOPTS)
 
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi

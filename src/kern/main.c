@@ -9,7 +9,7 @@
 #define DEBUG
 #endif
 
-#define INIT_PROC "init2" // name of init process executable
+#define INIT_PROC "fib" // name of init process executable
 
 #include "console.h"
 #include "thread.h"
@@ -34,16 +34,18 @@ void main(void) {
     void * mmio_base;
     int result;
     int i;
+
     console_init();
     memory_init();
     intr_init();
     devmgr_init();
     thread_init();
     procmgr_init();
+    timer_init();
 
     // Attach NS16550a serial devices
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
         mmio_base = (void*)UART0_IOBASE;
         mmio_base += (UART1_IOBASE-UART0_IOBASE)*i;
         uart_attach(mmio_base, UART0_IRQNO+i);
