@@ -92,6 +92,9 @@ void intr_disable_irq(int irqno) {
 
 void intr_handler(int code, struct trap_frame * tfr) {
     switch (code) {
+    case RISCV_SCAUSE_INTR_EXCODE_STI:
+        timer_intr_handler(tfr);
+        break;
     case RISCV_SCAUSE_INTR_EXCODE_SEI:
         extern_intr_handler();
         break;

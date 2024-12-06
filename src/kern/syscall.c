@@ -11,6 +11,7 @@
 #include "fs.h"
 #include "io.h"
 #include "memory.h"
+#include "timer.h"
 
 // Trap frame register indices
 #define TFR_A0 10
@@ -239,6 +240,28 @@ static int sysexec(int fd) {
     return process_exec(exeio);
 }
 
+// Wait for certain child to exit before returning. 
+// If tid is the main thread, wait for any child of current
+// thread to exit.
+static int syswait(int tid) {
+
+    trace("%s(%d)", __func__, tid);
+
+    if (tid == 0)
+        return thread_join_any();
+    else
+        return thread_join(tid);
+}
+
+// Sleep for us number of microseconds
+static int sysusleep(unsigned long us) {
+    struct alarm * al = kmalloc(sizeof(struct alarm));
+    alarm_init(al, "alarm_us");
+    alarm_sleep_us(al, us);
+    return 0;
+}
+
+
 // Called from the usermode exception handler to handle all syscalls. Jumps to a system call based on
 // the specified system call number
 void syscall_handler(struct trap_frame * tfr) {
@@ -274,6 +297,10 @@ void syscall_handler(struct trap_frame * tfr) {
         case SYSCALL_EXEC:
             tfr->x[TFR_A0] = sysexec(tfr->x[TFR_A0]);
             break;
+        case SYSCALL_WAIT:
+            tfr->x[TFR_A0] = syswait(tfr->x[TFR_A0]);
+        case SYSCALL_USLEEP:
+            tfr->x[TFR_A0] = sysusleep(tfr->x[TFR_A0]);
         default:
             tfr->x[TFR_A0] = -1;
             break;
