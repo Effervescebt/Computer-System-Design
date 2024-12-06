@@ -11,6 +11,7 @@
 #include "string.h"
 #include "thread.h"
 #include "limits.h"
+#include "lock.h"
 
 //           COMPILE-TIME PARAMETERS
 //          
@@ -47,6 +48,9 @@ struct vioblk_request_header {
     uint32_t reserved;
     uint64_t sector;
 };
+
+//          Initialize lock as a global variable
+struct lock lk;
 
 //           Request type (for vioblk_request_header)
 
@@ -257,6 +261,9 @@ void vioblk_attach(volatile struct virtio_mmio_regs * regs, int irqno) {
     intr_register_isr(irqno, VIOBLK_IRQ_PRIO, vioblk_isr, dev);
     device_register("blk", &vioblk_open, dev);
  
+    //
+    lock_init(&lk, "vioblk_lock");
+
     regs->status |= VIRTIO_STAT_DRIVER_OK;    
     //           fence o,oi
     __sync_synchronize();
@@ -339,6 +346,9 @@ long vioblk_read (
         bufsz = dev->size - dev->pos;
     uint64_t old_pos = dev->pos;
 
+    // Acquire the lock
+    lock_acquire(&lk);
+
     // read the block
     while (bufsz > 0) {
         int sector = dev->pos / dev->blksz;
@@ -365,6 +375,9 @@ long vioblk_read (
         bufsz -= count;
         buf += count;
     }
+
+    // Release the lock
+    lock_release(&lk);
 
     return dev->pos - old_pos;
 }
@@ -398,6 +411,9 @@ long vioblk_write (
     if (dev->pos + n > dev->size)
         n = dev->size - dev->pos;
     uint64_t old_pos = dev->pos;
+
+    // Acquire the lock
+    lock_acquire(&lk);
 
     // write the block
     while (n > 0) {
@@ -437,6 +453,9 @@ long vioblk_write (
         buf += count;
     }
 
+    // Release the lock
+    lock_release(&lk);
+    
     return dev->pos - old_pos;
 }
 

@@ -1,11 +1,13 @@
 #include "fs.h"
 #include "console.h"
+#include "lock.h"
 
 static struct file_array opened_files;
 static struct io_intf * system_io;
 static struct boot_block_t super_block;
 
 extern void * kmalloc(size_t size);
+struct lock lk;
 
 /*
  * @brief Takes an io intf* to the filesystem provider and sets up the filesystem for future fs open operations.
@@ -24,6 +26,9 @@ extern void * kmalloc(size_t size);
 int fs_mount(struct io_intf* io) {
     // set system io, will be used in most functions
     system_io = io;
+    // Initialize lock
+    lock_init(&lk, "filesystem_lock");
+    console_printf("lock initialized successfully in fs_mount");
     // read the first FS_BLKSZ length data, which is the boot_block we need, into the global boot_block
     long read_result = ioread_full(io, &super_block, FS_BLKSZ);
     if (read_result < 0) {
@@ -267,6 +272,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
         return -EFILESYS;
     }
 
+    // Initialize
+    lock_acquire(&lk);
+
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -276,6 +284,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     if (write_position + n > file_struct->byte_len) {
         n = file_struct->byte_len - write_position;
     }
+
+    // Release lock
+    lock_release(&lk);
 
     // determine how many cycles to go through, and the remainder bytes to write after block-size writes have finished
     size_t leading = write_position % FS_BLKSZ; 
@@ -361,6 +372,9 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         return -EFILESYS;
     }
 
+    // Initialize
+    lock_acquire(&lk);
+
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -372,6 +386,9 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         n = file_struct->byte_len - read_position;
     }
 
+    // Release lock
+    lock_release(&lk);
+    
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished
     size_t leading = read_position % FS_BLKSZ; 
     // leading is non-zero when reading_position is no multiple of FS_BLKSZ (that current read start position in middle of a data block)
