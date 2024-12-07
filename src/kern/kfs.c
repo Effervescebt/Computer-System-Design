@@ -1,11 +1,13 @@
 #include "fs.h"
 #include "console.h"
+#include "lock.h"
 
 static struct file_array opened_files;
 static struct io_intf * system_io;
 static struct boot_block_t super_block;
 
 extern void * kmalloc(size_t size);
+struct lock lk;
 
 /*
  * @brief Takes an io intf* to the filesystem provider and sets up the filesystem for future fs open operations.
@@ -24,6 +26,9 @@ extern void * kmalloc(size_t size);
 int fs_mount(struct io_intf* io) {
     // set system io, will be used in most functions
     system_io = io;
+    // Initialize lock
+    lock_init(&lk, "filesystem_lock");
+    console_printf("lock initialized successfully in fs_mount");
     // read the first FS_BLKSZ length data, which is the boot_block we need, into the global boot_block
     long read_result = ioread_full(io, &super_block, FS_BLKSZ);
     if (read_result < 0) {
@@ -271,6 +276,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
         return -EFILESYS;
     }
 
+    // Initialize
+    lock_acquire(&lk);
+
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -280,6 +288,9 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     if (write_position + n > file_struct->byte_len) {
         n = file_struct->byte_len - write_position;
     }
+
+    // Release lock
+    lock_release(&lk);
 
     // determine how many cycles to go through, and the remainder bytes to write after block-size writes have finished
     size_t leading = write_position % FS_BLKSZ; 
@@ -305,6 +316,8 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     // write_buffer_idx is an aux parameter to determine which location in buf to write into file system memory
     size_t write_buffer_idx = 0;
 
+    // Acquire lock here and release it later
+    lock_acquire(&lk);
     // set file system memory position to where we'd start writing
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
     for (int i = block_passed; i < DATA_BLOCK_NUM; i++) {
@@ -332,6 +345,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     write_position += n;
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
+    lock_release(&lk);
     return n;
 }
 
@@ -365,6 +379,9 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         return -EFILESYS;
     }
 
+    // Initialize
+    lock_acquire(&lk);
+
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -376,6 +393,9 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         n = file_struct->byte_len - read_position;
     }
 
+    // Release lock
+    lock_release(&lk);
+    
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished
     size_t leading = read_position % FS_BLKSZ; 
     // leading is non-zero when reading_position is no multiple of FS_BLKSZ (that current read start position in middle of a data block)
@@ -395,6 +415,8 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         remainder = n;
         cycle = 0;
     }
+    // lock here
+    lock_acquire(&lk);
     // calculate the buffer start in file system memory
     buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -429,6 +451,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     read_position += n;
     // set file position (after reading)
     ioctl(io, IOCTL_SETPOS, &read_position);
+    lock_release(&lk);
     // finish fs_read
     return n;
 }
