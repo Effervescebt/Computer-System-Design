@@ -46,6 +46,9 @@ extern int process_exec_for_test_use(struct io_intf * exeio, uint8_t rwxug_flags
 
 extern void __attribute__ ((noreturn)) process_exit(void);
 
+extern int thread_fork_to_user (
+    struct process * child_proc, const struct trap_frame * parent_tfr);
+
 // extern void process_terminate(int pid);
 
 static inline struct process * current_process(void);

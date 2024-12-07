@@ -527,6 +527,33 @@ void memory_handle_page_fault(const void * vptr) {
     }
 }
 
+uintptr_t memory_space_clone(uint_fast16_t asid) {
+    struct pte* new_root_page_table = kmalloc(PAGE_SIZE);
+    uintptr_t new_mtag = ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) | pageptr_to_pagenum(new_root_page_table);
+    uintptr_t pma;
+    uintptr_t vma;
+
+    // Identity mapping of two gigabytes (as two gigapage mappings)
+    for (pma = 0; pma < RAM_START_PMA; pma += GIGA_SIZE)
+        new_root_page_table[VPN2(pma)] = leaf_pte((void*)pma, PTE_R | PTE_W | PTE_G);
+    
+    // Third gigarange has a second-level page table
+    new_root_page_table[VPN2(RAM_START_PMA)] = ptab_pte(main_pt1_0x80000, PTE_G);
+
+    for (vma = USER_START_VMA; vma < USER_END_VMA; vma += PAGE_SIZE) {
+        struct pte* child_leaf_pte = walk_pt(new_root_page_table, vma, CREATE_PTE);
+        struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, 0);
+        child_leaf_pte->ppn = memory_alloc_page();
+        child_leaf_pte->flags = parent_leaf_pte->flags;
+        sfence_vma();
+        memcpy(child_leaf_pte->ppn, parent_leaf_pte->ppn, PAGE_SIZE);
+        sfence_vma();
+    }
+
+    memory_space_switch(new_mtag);
+    return new_mtag;
+}
+
 /*
  * @brief: Ensure that the virtual pointer provided (vp) points to a mapped region of size len and has at least the specified flags.
  */

@@ -271,6 +271,7 @@ int vioblk_open(struct io_intf ** ioptr, void * aux) {
 
     struct vioblk_device * dev = aux;
     *ioptr = &dev->io_intf;
+    (*ioptr)->refcnt = 1; // setting refcnt for new io
 
     // check if opened
     if (dev->opened) 
@@ -303,12 +304,17 @@ void vioblk_close(struct io_intf * io) {
     struct vioblk_device * dev = (void*)io -
         offsetof(struct vioblk_device, io_intf);
 
-    // reset the virtq avail and virtq used queues
-    intr_disable_irq(dev->irqno);
-    virtio_reset_virtq(dev->regs, 0);
+    // decrease refcnt by 1
+    io->refcnt -= 1;
 
-    // set necessary flags in vioblk device
-    dev->opened = 0;
+    if (io->refcnt <= 0) {
+        // reset the virtq avail and virtq used queues
+        intr_disable_irq(dev->irqno);
+        virtio_reset_virtq(dev->regs, 0);
+
+        // set necessary flags in vioblk device
+        dev->opened = 0;
+    }
 }
 
 /*  Reads bufsz number of bytes from the disk and writes them to buf. Achieves this by repeatedly

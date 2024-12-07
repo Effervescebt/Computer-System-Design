@@ -180,6 +180,8 @@ extern int memory_validate_vstr (
 
 extern void memory_handle_page_fault(const void * vptr);
 
+uintptr_t memory_space_clone(uint_fast16_t asid);
+
 // INLINE FUNCTION DEFINITIONS
 //
 

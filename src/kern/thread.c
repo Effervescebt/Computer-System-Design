@@ -172,6 +172,8 @@ extern void __attribute__ ((noreturn)) _thread_finish_jump (
     const struct thread_stack_anchor * stack_anchor,
     uintptr_t usp, uintptr_t upc, ...);
 
+extern void _thread_finish_fork (
+    struct thread * child, const struct trap_frame * parent_tfr);
 
 // EXPORTED FUNCTION DEFINITIONS
 //
@@ -271,6 +273,46 @@ void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
     csrc_sstatus(RISCV_SSTATUS_SPP);
     // console_printf("CSR initialized correctly\n");
     _thread_finish_jump(CURTHR->stack_base, usp, upc);
+}
+
+int thread_fork_to_user(struct process *child_proc, const struct trap_frame *parent_tfr) {
+    intr_disable();
+    struct thread_stack_anchor * stack_anchor;
+    void * stack_page;
+    struct thread * child_thread;
+    int saved_intr_state;
+
+    struct thread * parent_thread = parent_tfr->x[TFR_TP];
+    struct thread * child_thread = kmalloc(sizeof(struct thread));
+
+    stack_page = memory_alloc_page();
+    stack_anchor = stack_page + PAGE_SIZE;
+    stack_anchor -= 1;
+    stack_anchor->thread = child_thread;
+    stack_anchor->reserved = 0;
+
+    thrtab[child_proc->tid] = child_thread;
+
+    child_thread->id = child_proc->tid;
+    child_thread->name = parent_thread->name;
+    child_thread->parent = parent_thread;
+    child_thread->proc = child_proc;
+    child_thread->stack_base = stack_anchor;
+    child_thread->stack_size = child_thread->stack_base - stack_page;
+
+    saved_intr_state = intr_disable();
+    tlinsert(&ready_list, parent_thread);
+    set_thread_state(parent_thread, THREAD_READY);
+    set_thread_state(child_thread, THREAD_RUNNING);
+    intr_restore(saved_intr_state);
+
+    _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0]);
+
+    csrs_sstatus(RISCV_SSTATUS_SPIE);
+    csrc_sstatus(RISCV_SSTATUS_SPP);
+    _thread_finish_fork(child_thread, parent_tfr);
+
+    return child_proc->tid;
 }
 
 void thread_yield(void) {

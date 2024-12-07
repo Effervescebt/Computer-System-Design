@@ -131,12 +131,55 @@ _thread_finish_jump:
         mv      sp, a1       # update to user stack pointer
         sret    # return to U mode
 
+
+        .global _thread_finish_fork
+        .type   _thread_finish_fork, @function
+
+_thread_finish_fork:
+
+        sd      s0, 0*8(tp)
+        sd      s1, 1*8(tp)
+        sd      s2, 2*8(tp)
+        sd      s3, 3*8(tp)
+        sd      s4, 4*8(tp)
+        sd      s5, 5*8(tp)
+        sd      s6, 6*8(tp)
+        sd      s7, 7*8(tp)
+        sd      s8, 8*8(tp)
+        sd      s9, 9*8(tp)
+        sd      s10, 10*8(tp)
+        sd      s11, 11*8(tp)
+        sd      ra, 12*8(tp)
+        sd      sp, 13*8(tp)
+
+        mv      tp, a0
+
+        ld      sp, 13*8(tp)
+        ld      ra, 12*8(tp)
+        ld      s11, 11*8(tp)
+        ld      s10, 10*8(tp)
+        ld      s9, 9*8(tp)
+        ld      s8, 8*8(tp)
+        ld      s7, 7*8(tp)
+        ld      s6, 6*8(tp)
+        ld      s5, 5*8(tp)
+        ld      s4, 4*8(tp)
+        ld      s3, 3*8(tp)
+        ld      s2, 2*8(tp)
+        ld      s1, 1*8(tp)
+        ld      s0, 0*8(tp)
+        # la      ra, process_exit
+
+        la      a0, _trap_entry_from_umode
+        csrw    stvec, a0
+        sret
+
 # Statically allocated stack for the idle thread.
 
         .section        .data.stack, "wa", @progbits
         .balign          16
         
-        .equ            IDLE_STACK_SIZE, 1024
+        .equ            IDLE_STACK_SIZE, 4096
 
         .global         _idle_stack_lowest
         .type           _idle_stack_lowest, @object

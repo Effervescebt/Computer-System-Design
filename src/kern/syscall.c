@@ -11,12 +11,17 @@
 #include "fs.h"
 #include "io.h"
 #include "memory.h"
+#include "thread.h"
 
 // Trap frame register indices
 #define TFR_A0 10
 #define TFR_A1 11
 #define TFR_A2 12
 #define TFR_A7 17
+
+#ifndef NPROC
+#define NPROC 16
+#endif
 
 // Internal function definitions
 
@@ -239,6 +244,39 @@ static int sysexec(int fd) {
     return process_exec(exeio);
 }
 
+
+static int sysfork(const struct trap_frame * tfr) {
+    struct thread* parent_thr = running_thread();
+    struct process* parent_proc = current_process();
+    struct process* child_proc = kmalloc(sizeof(struct process*));
+
+    size_t child_proc_initialized = 0;
+    for (size_t proc_idx = 0; proc_idx < NPROC; proc_idx++) {
+        if (proctab[proc_idx] == NULL) {
+            child_proc->id = proc_idx;
+            child_proc_initialized = 1;
+            break;
+        }
+    }
+    if (child_proc_initialized == 0) {
+        panic("Too Many Process\n");
+    }
+    
+    // child_proc->tid = parent_proc->tid;
+    child_proc->mtag = memory_space_clone(0);
+    
+    for (size_t iotab_idx = 0; iotab_idx < PROCESS_IOMAX; iotab_idx++) {
+        child_proc->iotab[iotab_idx] = parent_proc->iotab[iotab_idx];
+        if (child_proc->iotab[iotab_idx] != NULL) {
+            child_proc->iotab[iotab_idx]->refcnt++;
+        }
+    }
+
+    thread_fork_to_user(child_proc, tfr);
+    
+    return child_proc->id;
+}
+
 // Called from the usermode exception handler to handle all syscalls. Jumps to a system call based on
 // the specified system call number
 void syscall_handler(struct trap_frame * tfr) {
@@ -274,6 +312,8 @@ void syscall_handler(struct trap_frame * tfr) {
         case SYSCALL_EXEC:
             tfr->x[TFR_A0] = sysexec(tfr->x[TFR_A0]);
             break;
+        case SYSCALL_FORK:
+            tfr->x[TFR_A0] = sysfork(tfr);
         default:
             tfr->x[TFR_A0] = -1;
             break;

@@ -86,6 +86,7 @@ int fs_open(const char* name, struct io_intf** io) {
         .ctl = fs_ioctl
     };
     new_io->ops = &new_file_ops;
+    new_io->refcnt = 1; // setting refcnt for new io
     *io = new_io;
 
     // find the first empty file locaton and store current file
@@ -116,7 +117,10 @@ void fs_close(struct io_intf* io) {
     // loop to find the file to close
     for (int i = 0; i < MAX_OPEN_FILE_CT; i++) {
         if (opened_files.current_opened_files[i].io_intf == io) {
-            opened_files.current_opened_files[i].usage_flag = UNUSED;
+            io->refcnt -= 1; // decrease refcnt by 1
+            if (io->refcnt <= 0) {
+                opened_files.current_opened_files[i].usage_flag = UNUSED;
+            }
             break;
         }
     }
