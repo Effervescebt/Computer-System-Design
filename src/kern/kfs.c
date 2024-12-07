@@ -220,29 +220,33 @@ int fs_ioctl(struct io_intf* io, int cmd, void* arg) {
     if (target_file == NULL) {
         return -EFILESYS;
     }
+    lock_acquire(&lk);
+    int ret;
     // switch on cmd to determine what to do
     switch (cmd)
     {
     case IOCTL_GETLEN:
-        return fs_getlen(target_file, arg);
+        ret = fs_getlen(target_file, arg);
         break;
 
     case IOCTL_GETPOS:
-        return fs_getpos(target_file, arg);
+        ret = fs_getpos(target_file, arg);
         break;
     
     case IOCTL_SETPOS:
-        return fs_setpos(target_file, arg);
+        ret = fs_setpos(target_file, arg);
         break;
 
     case IOCTL_GETBLKSZ:
-        return fs_getblksz(target_file, arg);
+        ret = fs_getblksz(target_file, arg);
         break;
 
     default:
-        return -EFILESYS;
+        ret = -EFILESYS;
         break;
     }
+    lock_release(&lk);
+    return ret;
 }
 
 /*

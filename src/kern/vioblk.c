@@ -471,18 +471,27 @@ int vioblk_ioctl(struct io_intf * restrict io, int cmd, void * restrict arg) {
     
     trace("%s(cmd=%d,arg=%p)", __func__, cmd, arg);
     
+    lock_acquire(&lk);
+    int ret;
     switch (cmd) {
     case IOCTL_GETLEN:
-        return vioblk_getlen(dev, arg);
+        ret =  vioblk_getlen(dev, arg);
+        break;
     case IOCTL_GETPOS:
-        return vioblk_getpos(dev, arg);
+        ret =  vioblk_getpos(dev, arg);
+        break;
     case IOCTL_SETPOS:
-        return vioblk_setpos(dev, arg);
+        ret =  vioblk_setpos(dev, arg);
+        break;
     case IOCTL_GETBLKSZ:
-        return vioblk_getblksz(dev, arg);
+        ret = vioblk_getblksz(dev, arg);
+        break;
     default:
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        break;
     }
+    lock_release(&lk);
+    return ret;
 }
 
 /*  Sets the appropriate device registers and wakes the thread up
