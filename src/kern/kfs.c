@@ -312,6 +312,8 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     // write_buffer_idx is an aux parameter to determine which location in buf to write into file system memory
     size_t write_buffer_idx = 0;
 
+    // Acquire lock here and release it later
+    lock_acquire(&lk);
     // set file system memory position to where we'd start writing
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
     for (int i = block_passed; i < DATA_BLOCK_NUM; i++) {
@@ -339,6 +341,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     write_position += n;
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
+    lock_release(&lk);
     return n;
 }
 
@@ -408,6 +411,8 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         remainder = n;
         cycle = 0;
     }
+    // lock here
+    lock_acquire(&lk);
     // calculate the buffer start in file system memory
     buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -442,6 +447,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     read_position += n;
     // set file position (after reading)
     ioctl(io, IOCTL_SETPOS, &read_position);
+    lock_release(&lk);
     // finish fs_read
     return n;
 }
