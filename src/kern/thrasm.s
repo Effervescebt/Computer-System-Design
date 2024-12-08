@@ -135,12 +135,19 @@ _thread_finish_jump:
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
 
-# This function begins be saving the currently running thread. Switches to the new child process thread and
-# back to the U mode interrupt handler. It then restores the ”saved” trap frame which is actually the duplicated
-# parent trap frame. Be sure to set up the return value correctly, it will be different between the child and
-# parent process. 
+# extern int thread_fork_to_user (
+#    struct process * child_proc, const struct trap_frame * parent_tfr);
+
+# @brief: This function begins be saving the currently running thread. Switches to the new child process thread and
+#       back to the U mode interrupt handler. It then restores the ”saved” trap frame which is actually the duplicated
+#       parent trap frame. Be sure to set up the return value correctly, it will be different between the child and
+#       parent process. 
+# @params:
+#       struct process * child_proc: child process created by sysfork
+#       const struct trap_frame * parent_tfr: parent trap frame
 _thread_finish_fork:
         # currently in the parent thread, we want to switch to child thread
+        # store all registers from parent thread
         sd      s0, 0*8(tp)
         sd      s1, 1*8(tp)
         sd      s2, 2*8(tp)
@@ -160,16 +167,16 @@ _thread_finish_fork:
         sub     s1, s0, sp      # set s0 to kernel size
         ld      sp, 13*8(a0)    # set sp to child stack base
 
-        addi    s2, s1, 0    # set s2 to loop index
-        addi    s3, sp, -8       # set s3 to child stack ptr
+        addi    s2, s1, 0       # set s2 to loop index
+        addi    s3, sp, -8      # set s3 to child stack ptr
         addi    s4, s0, -8      # set s4 to parent stack ptr
         and     s5, s5, 0       # set s5 to temp register
 
 set_child_frame:
 
-        ld      s5, 0(s4)
-        sd      s5, 0(s3)
-        addi    s3, s3, -8
+        ld      s5, 0(s4)       # load data from parent thread stack
+        sd      s5, 0(s3)       # store data into child thread stack
+        addi    s3, s3, -8      # decrease both stack pointers
         addi    s4, s4, -8
 
         addi    s2, s2, -1      # decrease idx by 1

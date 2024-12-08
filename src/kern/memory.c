@@ -558,31 +558,42 @@ void memory_handle_page_fault(const void * vptr) {
     }
 }
 
-/* Function implemented in memory.c that should clone your memory space for current process and return the
-  mtag of the new memory space. Should be used in thread fork to user to setup the memory space for
-  the child process.
-*/
+/*
+ * @brief: clones all userspace memory for forked procss
+ * @specific: Function implemented in memory.c that should clone your memory space for current process and return the
+ * mtag of the new memory space. Should be used in thread fork to user to setup the memory space for
+ * the child process.
+ * 
+ * @param:
+ * uint_fast16_t asid: unused
+ * @return val:
+ * uintptr_t new_mtag: mtag for cloned memory space
+ */
 uintptr_t memory_space_clone(uint_fast16_t asid) {
     struct pte* new_root_page_table = kmalloc(PAGE_SIZE);
     uintptr_t new_mtag = ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) | pageptr_to_pagenum(new_root_page_table);
     uintptr_t pma;
     uintptr_t vma;
 
+    // Shallow copy the global contents
     // Identity mapping of two gigabytes (as two gigapage mappings)
     for (pma = 0; pma < RAM_START_PMA; pma += GIGA_SIZE)
         new_root_page_table[VPN2(pma)] = leaf_pte((void*)pma, PTE_R | PTE_W | PTE_G);
     
     // Third gigarange has a second-level page table
     new_root_page_table[VPN2(RAM_START_PMA)] = ptab_pte(main_pt1_0x80000, PTE_G);
-
+    
+    // Loop shall clone all existing user space memory
     for (vma = USER_START_VMA; vma < USER_END_VMA; vma += PAGE_SIZE) {
         struct pte* child_leaf_pte = walk_pt(new_root_page_table, vma, CREATE_PTE);
         struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, 0);
 
+        // If pte allocated and contexts have flag PTE_V
         if ((size_t)parent_leaf_pte <= (size_t)RAM_END && (size_t)parent_leaf_pte >= (size_t)RAM_START 
             && (parent_leaf_pte->flags & PTE_V) != 0 && parent_leaf_pte->ppn != 0) {
             uint8_t original_flag = parent_leaf_pte->flags;
             child_leaf_pte->ppn = pageptr_to_pagenum(memory_alloc_page());
+            // Set R/W flags which permits clone
             child_leaf_pte->flags = parent_leaf_pte->flags | PTE_W | PTE_R;
             sfence_vma();
             memory_set_page_flags((void *)vma, original_flag | PTE_W | PTE_R);
@@ -593,6 +604,7 @@ uintptr_t memory_space_clone(uint_fast16_t asid) {
         }
     }
 
+    // switch memory space
     memory_space_switch(new_mtag);
     return new_mtag;
 }

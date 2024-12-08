@@ -226,11 +226,18 @@ static int sysexec(int fd) {
     return process_exec(exeio);
 }
 
-/* The fork system call duplicates the currently running process and creates a child process which starts at the
-  same point in the original or parent process. fork returns the pid of the child process to the parent process.
-  It returns 0 to the child process. It starts by allocating a new process and copying all the iotab pointers
-  from the parent to the child process.It also initializes all the reference counts.
-*/
+/* 
+ * @brief: creates a new child process from its parent
+ * @specific: The fork system call duplicates the currently running process and creates a child process which starts at the
+ * same point in the original or parent process. fork returns the pid of the child process to the parent process.
+ * It returns 0 to the child process. It starts by allocating a new process and copying all the iotab pointers
+ * from the parent to the child process.It also initializes all the reference counts.
+ * 
+ * @param:
+ * const struct trap_frame * tfr: parent's trap frame
+ * @ret val:
+ * thread_fork_to_user(child_proc, tfr): returned from thread_fork_to_user, depends on thread returning fom it
+ */
 static int sysfork(const struct trap_frame * tfr) {
     struct process* parent_proc = current_process();
     struct process* child_proc = kmalloc(sizeof(struct process));

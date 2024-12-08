@@ -65,14 +65,6 @@ static inline void lock_acquire(struct lock * lk) {
     // Current thread acquires the lock
     lk->tid = running_thread();
 
-    // if (lk->tid == -1){
-    //     lk->tid = running_thread();
-    // }
-    // else{
-    //     condition_wait(&(lk->cond));
-    //     lk->tid = running_thread();
-    // }
-
     // Enable interrupt
     intr_restore(saved_intr_state);
 

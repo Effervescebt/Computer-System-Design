@@ -273,10 +273,16 @@ void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
     _thread_finish_jump(CURTHR->stack_base, usp, upc);
 }
 
-/* This function allocates new memory for the child process and sets up another thread struct. It also initializes
-  a stack anchor to reclaim the thread pointer when coming back from a U mode interrupt. The child’s memory
-  space is switched into and the thread is set to be run
-*/
+/* 
+ * @brief: allocate thread, initialize all its contents and pass control to _thread_finish_fork
+ * @specific: This function allocates new memory for the child process and sets up another thread struct. It also initializes
+ * a stack anchor to reclaim the thread pointer when coming back from a U mode interrupt. The child’s memory
+ * space is switched into and the thread is set to be run
+ * 
+ * @param:
+ * struct process *child_proc: newly created child process from sysfork
+ * const struct trap_frame *parent_tfr: parent trap frame
+ */
 int thread_fork_to_user(struct process *child_proc, const struct trap_frame *parent_tfr) {
     
     struct thread_stack_anchor * stack_anchor;
@@ -310,13 +316,14 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     child_thread->stack_base = stack_anchor;
     child_thread->stack_size = child_thread->stack_base - stack_page;
 
-    // switch to child thread
+    // switch to child thread and set it running
     saved_intr_state = intr_disable();
     tlinsert(&ready_list, parent_thread);
     set_thread_state(parent_thread, THREAD_READY);
     set_thread_state(child_thread, THREAD_RUNNING);
     intr_restore(saved_intr_state);
 
+    // thread setup
     _thread_setup(child_thread, child_thread->stack_base, (void *)parent_tfr->x[TFR_S11], 
     (uint64_t)parent_tfr->x[TFR_S0], (uint64_t)parent_tfr->x[TFR_S1], (uint64_t)parent_tfr->x[TFR_S2], 
     (uint64_t)parent_tfr->x[TFR_S3], (uint64_t)parent_tfr->x[TFR_S4]);
