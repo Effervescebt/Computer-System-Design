@@ -156,7 +156,7 @@ _trap_entry_from_umode:
         csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
         addi    sp, sp, -34*8   # allocate space for trap frame
         sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
-        addi    t6, sp, 34*8    # save original sp
+        csrr    t6, sscratch    # save usp in trap frame
         sd      t6, 2*8(sp)     #
 
         save_gprs_except_t6_and_sp
@@ -186,9 +186,9 @@ _trap_entry_from_umode:
         restore_gprs_except_t6_and_sp
 
         ld      t6, 31*8(sp)
-        ld      sp, 2*8(sp)
-
-        csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
+        addi    sp, sp, 34*8
+        csrw    sscratch, sp
+        ld      sp, -32*8(sp)
 
         sret
 
@@ -206,11 +206,12 @@ trap_umode_cont:
         srli    a0, a0, 1               #
 
         j       intr_handler            # in intr.c
-
+        
 
         .global _mmode_trap_entry
         .type   _mmode_trap_entry, @function
         .balign 4 # Trap entry must be 4-byte aligned for mtvec CSR
+
 
 # RISC-V does not provide a built-in S mode timer, only an M mode timer. The
 # rationale is that the M mode environment will provide a virtualized timer to S
@@ -286,4 +287,5 @@ unexpected_mmode_trap:
 trap_mmode_cont:
         .asciz          "Unexpected M-mode trap"
 
-        .end        
+
+        .end
