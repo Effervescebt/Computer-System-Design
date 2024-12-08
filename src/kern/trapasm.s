@@ -206,23 +206,6 @@ trap_umode_cont:
         srli    a0, a0, 1               #
 
         j       intr_handler            # in intr.c
-        
-
-        .global _mmode_trap_entry
-        .type   _mmode_trap_entry, @function
-        .balign 4 # Trap entry must be 4-byte aligned for mtvec CSR
-
-_mmode_trap_entry:
-
-        # All traps are redirected to S mode, so if we end up here, something
-        # went very wrong.
-
-        la      a0, trap_mmode_cont
-        call    panic
-
-        .section        .rodata, "a", @progbits
-trap_mmode_cont:
-        .asciz          "Unexpected M-mode trap"
 
 
         .global _mmode_trap_entry
@@ -303,5 +286,4 @@ unexpected_mmode_trap:
 trap_mmode_cont:
         .asciz          "Unexpected M-mode trap"
 
-
-        .end
+        .end        

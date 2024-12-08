@@ -5,6 +5,7 @@
 #include "string.h"
 #include <stddef.h>
 #include <stdint.h>
+#include "lock.h"
 
 #ifndef _FS_H_
 #define _FS_H_

@@ -507,6 +507,11 @@ void memory_unmap_and_free_user(void) {
             }
         }
     }
+    uintptr_t cur_mtag = ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) | pageptr_to_pagenum(cur_active_pt2);
+    if (cur_mtag != main_mtag) {
+        //memory_free_page(cur_mtag);
+        sfence_vma();
+    }
 }
 
 /*
@@ -523,7 +528,8 @@ void memory_handle_page_fault(const void * vptr) {
         memory_alloc_and_map_page((uintptr_t)vptr, PTE_R | PTE_W | PTE_U);
         sfence_vma();
     } else {
-        panic("Memory Handle Page Fault Exited Anomaly\n");
+        kprintf("Memory Handle Page Fault Exited Anomaly at %x\n", vptr);
+        panic(NULL);
     }
 }
 
@@ -543,11 +549,20 @@ uintptr_t memory_space_clone(uint_fast16_t asid) {
     for (vma = USER_START_VMA; vma < USER_END_VMA; vma += PAGE_SIZE) {
         struct pte* child_leaf_pte = walk_pt(new_root_page_table, vma, CREATE_PTE);
         struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, 0);
-        child_leaf_pte->ppn = memory_alloc_page();
-        child_leaf_pte->flags = parent_leaf_pte->flags;
-        sfence_vma();
-        memcpy(child_leaf_pte->ppn, parent_leaf_pte->ppn, PAGE_SIZE);
-        sfence_vma();
+        // struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, CREATE_PTE);
+        if (parent_leaf_pte <= RAM_END && parent_leaf_pte >= RAM_START && (parent_leaf_pte->flags & PTE_V) != 0 && parent_leaf_pte->ppn != 0) {
+            uint8_t original_flag = parent_leaf_pte->flags;
+            child_leaf_pte->ppn = pageptr_to_pagenum(memory_alloc_page());
+            child_leaf_pte->flags = parent_leaf_pte->flags | PTE_W | PTE_R;
+            sfence_vma();
+            memory_set_page_flags(vma, original_flag | PTE_W | PTE_R);
+            sfence_vma();
+            memcpy(pagenum_to_pageptr(child_leaf_pte->ppn), vma, PAGE_SIZE);
+            sfence_vma();
+            child_leaf_pte->flags = parent_leaf_pte->flags;
+            memory_set_page_flags(vma, original_flag);
+            sfence_vma();
+        }
     }
 
     memory_space_switch(new_mtag);

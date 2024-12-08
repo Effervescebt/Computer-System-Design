@@ -13,12 +13,7 @@
 #include "memory.h"
 #include "thread.h"
 #include "timer.h"
-
-// Trap frame register indices
-#define TFR_A0 10
-#define TFR_A1 11
-#define TFR_A2 12
-#define TFR_A7 17
+#include "trap.h"
 
 #ifndef NPROC
 #define NPROC 16
@@ -249,23 +244,25 @@ static int sysexec(int fd) {
 static int sysfork(const struct trap_frame * tfr) {
     struct thread* parent_thr = running_thread();
     struct process* parent_proc = current_process();
-    struct process* child_proc = kmalloc(sizeof(struct process*));
+    struct process* child_proc = kmalloc(sizeof(struct process));
 
     size_t child_proc_initialized = 0;
     for (size_t proc_idx = 0; proc_idx < NPROC; proc_idx++) {
         if (proctab[proc_idx] == NULL) {
             child_proc->id = proc_idx;
             child_proc_initialized = 1;
+            proctab[proc_idx] = child_proc;
             break;
         }
     }
     if (child_proc_initialized == 0) {
         panic("Too Many Process\n");
     }
-    
+
+
     // child_proc->tid = parent_proc->tid;
     child_proc->mtag = memory_space_clone(0);
-    
+
     for (size_t iotab_idx = 0; iotab_idx < PROCESS_IOMAX; iotab_idx++) {
         child_proc->iotab[iotab_idx] = parent_proc->iotab[iotab_idx];
         if (child_proc->iotab[iotab_idx] != NULL) {
@@ -337,10 +334,13 @@ void syscall_handler(struct trap_frame * tfr) {
             break;
         case SYSCALL_FORK:
             tfr->x[TFR_A0] = sysfork(tfr);
+            break;
         case SYSCALL_WAIT:
             tfr->x[TFR_A0] = syswait(tfr->x[TFR_A0]);
+            break;
         case SYSCALL_USLEEP:
             tfr->x[TFR_A0] = sysusleep(tfr->x[TFR_A0]);
+            break;
         default:
             tfr->x[TFR_A0] = -1;
             break;

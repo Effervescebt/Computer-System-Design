@@ -11,7 +11,7 @@
 #include "string.h"
 #include "thread.h"
 #include "limits.h"
-#include "lock.h"
+
 
 //           COMPILE-TIME PARAMETERS
 //          
@@ -49,9 +49,6 @@ struct vioblk_request_header {
     uint64_t sector;
 };
 
-//          Initialize lock as a global variable
-struct lock lk;
-
 //           Request type (for vioblk_request_header)
 
 #define VIRTIO_BLK_T_IN             0
@@ -70,6 +67,9 @@ struct lock lk;
 
 #define VIOBLK_SECTOR_SIZE      512
 #define VIOBLK_USED_NOTF        (1 << 0)
+
+//          Initialize lock as a global variable
+static struct lock vlk;
 
 struct vioblk_device {
     volatile struct virtio_mmio_regs * regs;
@@ -262,7 +262,7 @@ void vioblk_attach(volatile struct virtio_mmio_regs * regs, int irqno) {
     device_register("blk", &vioblk_open, dev);
  
     //
-    lock_init(&lk, "vioblk_lock");
+    lock_init(&vlk, "vioblk_lock");
 
     regs->status |= VIRTIO_STAT_DRIVER_OK;    
     //           fence o,oi
@@ -353,7 +353,7 @@ long vioblk_read (
     uint64_t old_pos = dev->pos;
 
     // Acquire the lock
-    lock_acquire(&lk);
+    lock_acquire(&vlk);
 
     // read the block
     while (bufsz > 0) {
@@ -383,7 +383,7 @@ long vioblk_read (
     }
 
     // Release the lock
-    lock_release(&lk);
+    lock_release(&vlk);
 
     return dev->pos - old_pos;
 }
@@ -419,7 +419,7 @@ long vioblk_write (
     uint64_t old_pos = dev->pos;
 
     // Acquire the lock
-    lock_acquire(&lk);
+    lock_acquire(&vlk);
 
     // write the block
     while (n > 0) {
@@ -460,7 +460,7 @@ long vioblk_write (
     }
 
     // Release the lock
-    lock_release(&lk);
+    lock_release(&vlk);
     
     return dev->pos - old_pos;
 }
@@ -471,7 +471,7 @@ int vioblk_ioctl(struct io_intf * restrict io, int cmd, void * restrict arg) {
     
     trace("%s(cmd=%d,arg=%p)", __func__, cmd, arg);
     
-    lock_acquire(&lk);
+    lock_acquire(&vlk);
     int ret;
     switch (cmd) {
     case IOCTL_GETLEN:
@@ -490,7 +490,7 @@ int vioblk_ioctl(struct io_intf * restrict io, int cmd, void * restrict arg) {
         ret = -ENOTSUP;
         break;
     }
-    lock_release(&lk);
+    lock_release(&vlk);
     return ret;
 }
 

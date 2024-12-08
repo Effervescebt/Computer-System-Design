@@ -1,13 +1,14 @@
 #include "fs.h"
 #include "console.h"
-#include "lock.h"
+
 
 static struct file_array opened_files;
 static struct io_intf * system_io;
 static struct boot_block_t super_block;
 
 extern void * kmalloc(size_t size);
-struct lock lk;
+
+static struct lock flk;
 
 /*
  * @brief Takes an io intf* to the filesystem provider and sets up the filesystem for future fs open operations.
@@ -27,8 +28,8 @@ int fs_mount(struct io_intf* io) {
     // set system io, will be used in most functions
     system_io = io;
     // Initialize lock
-    lock_init(&lk, "filesystem_lock");
-    console_printf("lock initialized successfully in fs_mount");
+    lock_init(&flk, "filesystem_lock");
+    console_printf("lock initialized successfully in fs_mount\n");
     // read the first FS_BLKSZ length data, which is the boot_block we need, into the global boot_block
     long read_result = ioread_full(io, &super_block, FS_BLKSZ);
     if (read_result < 0) {
@@ -57,6 +58,7 @@ int fs_mount(struct io_intf* io) {
  * -> 0 or Error Code
  */
 int fs_open(const char* name, struct io_intf** io) {
+    lock_acquire(&flk);
     uint32_t requested_inode = -1;
     uint64_t inode_position = 0;
     // find the inode of the file to open
@@ -102,10 +104,11 @@ int fs_open(const char* name, struct io_intf** io) {
             opened_files.current_opened_files[i].usage_flag = IN_USE;
             opened_files.current_opened_files[i].file_position = inode_position;
             opened_files.current_opened_files[i].inode = requested_inode;
+            lock_release(&flk);
             return 0;
         }
     }
-    // successful fs_open
+    // failed fs_open
     return -EFILESYS;
 }
 
@@ -220,7 +223,7 @@ int fs_ioctl(struct io_intf* io, int cmd, void* arg) {
     if (target_file == NULL) {
         return -EFILESYS;
     }
-    lock_acquire(&lk);
+    lock_acquire(&flk);
     int ret;
     // switch on cmd to determine what to do
     switch (cmd)
@@ -245,7 +248,7 @@ int fs_ioctl(struct io_intf* io, int cmd, void* arg) {
         ret = -EFILESYS;
         break;
     }
-    lock_release(&lk);
+    lock_release(&flk);
     return ret;
 }
 
@@ -281,7 +284,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     }
 
     // Initialize
-    lock_acquire(&lk);
+    lock_acquire(&flk);
 
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
@@ -294,7 +297,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     }
 
     // Release lock
-    lock_release(&lk);
+    lock_release(&flk);
 
     // determine how many cycles to go through, and the remainder bytes to write after block-size writes have finished
     size_t leading = write_position % FS_BLKSZ; 
@@ -321,7 +324,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     size_t write_buffer_idx = 0;
 
     // Acquire lock here and release it later
-    lock_acquire(&lk);
+    lock_acquire(&flk);
     // set file system memory position to where we'd start writing
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
     for (int i = block_passed; i < DATA_BLOCK_NUM; i++) {
@@ -349,7 +352,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     write_position += n;
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
-    lock_release(&lk);
+    lock_release(&flk);
     return n;
 }
 
@@ -384,7 +387,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     }
 
     // Initialize
-    lock_acquire(&lk);
+    lock_acquire(&flk);
 
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
@@ -398,7 +401,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     }
 
     // Release lock
-    lock_release(&lk);
+    lock_release(&flk);
     
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished
     size_t leading = read_position % FS_BLKSZ; 
@@ -420,7 +423,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         cycle = 0;
     }
     // lock here
-    lock_acquire(&lk);
+    lock_acquire(&flk);
     // calculate the buffer start in file system memory
     buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -453,9 +456,9 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         
     }
     read_position += n;
+    lock_release(&flk);
     // set file position (after reading)
     ioctl(io, IOCTL_SETPOS, &read_position);
-    lock_release(&lk);
     // finish fs_read
     return n;
 }

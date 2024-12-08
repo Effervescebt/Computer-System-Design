@@ -220,7 +220,6 @@ int thread_spawn(const char * name, void (*start)(void *), void * arg) {
     stack_anchor->thread = child;
     stack_anchor->reserved = 0;
 
-
     thrtab[tid] = child;
 
     child->id = tid;
@@ -276,13 +275,12 @@ void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
 }
 
 int thread_fork_to_user(struct process *child_proc, const struct trap_frame *parent_tfr) {
-    intr_disable();
+    
     struct thread_stack_anchor * stack_anchor;
     void * stack_page;
-    struct thread * child_thread;
     int saved_intr_state;
 
-    struct thread * parent_thread = parent_tfr->x[TFR_TP];
+    struct thread * parent_thread = (struct thread *)parent_tfr->x[TFR_TP];
     struct thread * child_thread = kmalloc(sizeof(struct thread));
 
     stack_page = memory_alloc_page();
@@ -290,8 +288,15 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     stack_anchor -= 1;
     stack_anchor->thread = child_thread;
     stack_anchor->reserved = 0;
+    csrw_sscratch(stack_anchor);
 
-    thrtab[child_proc->tid] = child_thread;
+    for (size_t tid_idx = 0; tid_idx < NTHR; tid_idx++) {
+        if (thrtab[tid_idx] == NULL) {
+            child_proc->tid = tid_idx;
+            thrtab[child_proc->tid] = child_thread;
+            break;
+        }
+    }
 
     child_thread->id = child_proc->tid;
     child_thread->name = parent_thread->name;
@@ -306,10 +311,12 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     set_thread_state(child_thread, THREAD_RUNNING);
     intr_restore(saved_intr_state);
 
-    _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0]);
+    _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0], parent_tfr->x[TFR_S1], parent_tfr->x[TFR_S2], parent_tfr->x[TFR_S3], parent_tfr->x[TFR_S4]);
 
+    // intr_disable();
     csrs_sstatus(RISCV_SSTATUS_SPIE);
     csrc_sstatus(RISCV_SSTATUS_SPP);
+    memory_space_switch(child_proc->mtag);
     _thread_finish_fork(child_thread, parent_tfr);
 
     return child_proc->tid;

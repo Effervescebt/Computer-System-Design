@@ -5,6 +5,7 @@
 #define _VIRTIO_H_
 
 #include <stdint.h>
+#include "lock.h"
 
 //           EXPORTED CONSTANT DEFINITIONS
 //          
