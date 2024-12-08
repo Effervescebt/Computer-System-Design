@@ -145,7 +145,6 @@ void fs_close(struct io_intf* io) {
  */
 int fs_getlen(file_t* fd, void* arg) {
     *(int*)arg = fd->file_size;
-    console_printf("filesize%d\n", fd->file_size);
     return *(int*)arg;
 }
 
@@ -349,9 +348,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
         }
     }
     write_position += n;
+    lock_release(&flk);
+    
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
-    lock_release(&flk);
     return n;
 }
 
