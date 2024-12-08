@@ -78,5 +78,5 @@ void main(void) {
     message = "\n\rHit any key to end the program: ";
     slen = strlen(message);
     _write(0, message, slen);
-    _read(0, c, 1);
+    _read(0, c, 1);              
 }

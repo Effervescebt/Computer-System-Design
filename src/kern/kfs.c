@@ -403,6 +403,8 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
     // Release lock
     lock_release(&flk);
     
+    // lock here
+    lock_acquire(&flk);
     // determine how many cycles to go through, and the remainder bytes to read after block-size reads have finished
     size_t leading = read_position % FS_BLKSZ; 
     // leading is non-zero when reading_position is no multiple of FS_BLKSZ (that current read start position in middle of a data block)
@@ -422,8 +424,7 @@ long fs_read(struct io_intf* io, void* buf, unsigned long n) {
         remainder = n;
         cycle = 0;
     }
-    // lock here
-    lock_acquire(&flk);
+    
     // calculate the buffer start in file system memory
     buffer_start = (file_struct->data_block_num[block_passed] + super_block.num_inodes) * FS_BLKSZ + FS_BLKSZ + leading;
     ioctl(system_io, IOCTL_SETPOS, &buffer_start);

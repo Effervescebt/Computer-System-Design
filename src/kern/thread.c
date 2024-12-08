@@ -317,7 +317,9 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     csrs_sstatus(RISCV_SSTATUS_SPIE);
     csrc_sstatus(RISCV_SSTATUS_SPP);
     memory_space_switch(child_proc->mtag);
+    console_printf("prev sepc: 0x%lx, prev stval: 0x%lx, prev scause: 0x%lx\n",csrr_sepc, csrr_stval, csrr_scause);
     _thread_finish_fork(child_thread, parent_tfr);
+    console_printf("cur sepc: 0x%lx, cur stval: 0x%lx, cur scause: 0x%lx\n",csrr_sepc, csrr_stval, csrr_scause);
 
     return child_proc->tid;
 }
