@@ -1,0 +1,6 @@
+Student demonstrates locking with the following type of user program / 9 pts
+• User program opens a file from the file system then forks into a parent and child program
+• Parent program conducts at least 3 writes and waits for child to exit
+• Child program conducts at least 3 writes, closes the open file and exits
+• Parent program prints the contents of the file to console, closes the file and exits
+• Note: The writes to said file should not overlap
