@@ -348,10 +348,7 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     }
     write_position += n;
     lock_release(&flk);
-<<<<<<< HEAD
     
-=======
->>>>>>> origin/mp3-cp3-master
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
     return n;

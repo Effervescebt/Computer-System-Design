@@ -7,11 +7,7 @@
 void main(void) {
     int result;
     size_t slen;
-<<<<<<< HEAD
     char * message;
-=======
-    char* message;
->>>>>>> origin/mp3-cp3-master
     size_t size;
 
     // open a file
@@ -30,7 +26,6 @@ void main(void) {
 
     _msgout("ready to enter fork");
     if (_fork()) {
-<<<<<<< HEAD
         _msgout("finish fork");
 
         // exec parent program
@@ -52,28 +47,6 @@ void main(void) {
         // wait for child to exit
         _msgout("parent waiting");
         _wait(1);
-=======
-        _msgout("enter parent");
-        // exec parent program
-        message = "lock parent program write 1 ";
-        slen = strlen(message);
-        _msgout("parent write 1 ready");
-        _write(0, message, slen);
-        _msgout("parent write 1 finished");
-
-        message = "lock parent program write 2 ";
-        slen = strlen(message);
-        _write(0, message, slen);
-        _msgout("parent write 2 finished");
-
-        message = "lock parent program write 3 ";
-        slen = strlen(message);
-        _write(0, message, slen);
-        _msgout("parent write 3 finished");
-
-        // wait for child to exit
-        _wait(0);
->>>>>>> origin/mp3-cp3-master
 
         // print to console, close the file, exit
         size = 0;
@@ -92,7 +65,6 @@ void main(void) {
         // exec child program
         size = 200;
         _ioctl(0, IOCTL_SETPOS, &size);
-<<<<<<< HEAD
         message = "\n------lock child program write 1------\n";
         slen = strlen(message);
         _write(0, message, slen);
@@ -104,15 +76,6 @@ void main(void) {
         _msgout("child write 2 finish");
 
         message = "------lock child program write 3------\n";
-=======
-        message = "lock child program write 1 ";
-        slen = strlen(message);
-        _write(0, message, slen);
-        message = "lock child program write 2 ";
-        slen = strlen(message);
-        _write(0, message, slen);
-        message = "lock child program write 3 ";
->>>>>>> origin/mp3-cp3-master
         slen = strlen(message);
         _write(0, message, slen);
         _msgout("child write 3 finish");
