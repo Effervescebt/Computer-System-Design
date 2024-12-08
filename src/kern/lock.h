@@ -35,6 +35,19 @@ static inline void lock_init(struct lock * lk, const char * name) {
     lk->tid = -1;
 }
 
+/**
+ * @brief:  Acquire lock for current thread.
+ * @arg: the lock pointer to the lock structure that the thread attemps to acquire
+ * 
+ * In this function, the current thread attempts to acquire the lock. 
+ * Case 1: If the lock is in unlocked state, it is changed to locked state
+ * Case 2: If the lock is locked, current thread is suspended until it succeeds in acquiring the lock.
+ * 
+ * @notice: This function must not be called from ISR. So interrupts should be disabled here.
+ * In addition, to achieve the function that current thread will suspend until the lock is unlocked.
+ * So while loops is used here instead of if-else structure.
+ */
+
 static inline void lock_acquire(struct lock * lk) {
     // TODO: FIXME implement this
 
@@ -43,10 +56,12 @@ static inline void lock_acquire(struct lock * lk) {
     int saved_intr_state = intr_disable();
 
     // Check lock state
+    // Use while loop to ensure the current thread is suspended till the target lock is unlocked
     while (lk->tid != -1){ // If it is locked
-        // Wait till it is awakened
+        // Wait till the lock is in unlocked state
         condition_wait(&(lk->cond));
     }
+    // Current thread acquires the lock
     lk->tid = running_thread();
 
     // if (lk->tid == -1){
@@ -56,6 +71,7 @@ static inline void lock_acquire(struct lock * lk) {
     //     condition_wait(&(lk->cond));
     //     lk->tid = running_thread();
     // }
+
     // Enable interrupt
     intr_restore(saved_intr_state);
 

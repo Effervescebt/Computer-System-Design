@@ -313,14 +313,20 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
 
     _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0], parent_tfr->x[TFR_S1], parent_tfr->x[TFR_S2], parent_tfr->x[TFR_S3], parent_tfr->x[TFR_S4]);
 
-    // intr_disable();
-    csrs_sstatus(RISCV_SSTATUS_SPIE);
-    csrc_sstatus(RISCV_SSTATUS_SPP);
-    memory_space_switch(child_proc->mtag);
-    console_printf("prev sepc: 0x%lx, prev stval: 0x%lx, prev scause: 0x%lx\n",csrr_sepc, csrr_stval, csrr_scause);
-    _thread_finish_fork(child_thread, parent_tfr);
-    console_printf("cur sepc: 0x%lx, cur stval: 0x%lx, cur scause: 0x%lx\n",csrr_sepc, csrr_stval, csrr_scause);
+    // TODO:
+    void* parent_kernel_sp;
+    void* child_kernel_sp;
+    asm inline ("mv %0, sp" : "=r" (parent_kernel_sp));
+    uint64_t parent_kstack_used_size = CURTHR->stack_base - parent_kernel_sp;
+    child_kernel_sp = child_thread->stack_base - parent_kstack_used_size;
+    memcpy(child_kernel_sp, parent_kernel_sp, parent_kstack_used_size);
+    
+    _thread_finish_fork(child_thread, child_kernel_sp);
 
+    if(running_thread() == child_proc->tid){
+        struct trap_frame * c_tfr = (struct trap_frame *)(child_thread->stack_base) - 1;
+        c_tfr->x[TFR_A0] = 0;    
+    }
     return child_proc->tid;
 }
 

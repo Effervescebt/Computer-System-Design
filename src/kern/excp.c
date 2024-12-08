@@ -69,7 +69,7 @@ void umode_excp_handler(unsigned int code, struct trap_frame * tfr) {
         memory_handle_page_fault((void*)csrr_stval());
         break;
     case RISCV_SCAUSE_INSTR_PAGE_FAULT:
-        kprintf("stval: %x\n", csrr_stval());
+        // kprintf("stval: %x\n", csrr_stval());
         memory_handle_page_fault((void*)csrr_stval());
         break;
     default:

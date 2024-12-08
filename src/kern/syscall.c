@@ -270,9 +270,7 @@ static int sysfork(const struct trap_frame * tfr) {
         }
     }
 
-    thread_fork_to_user(child_proc, tfr);
-    
-    return child_proc->id;
+    return thread_fork_to_user(child_proc, tfr);
 }
 
 // Wait for certain child to exit before returning. 
