@@ -188,7 +188,7 @@ _trap_entry_from_umode:
         ld      t6, 31*8(sp)
         addi    sp, sp, 34*8
         csrw    sscratch, sp
-        ld      sp, -32*8(sp)
+        ld      sp, -32*8(sp)   # stack pointer stored at current sp - 34 + 2
 
         sret
 

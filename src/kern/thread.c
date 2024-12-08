@@ -313,6 +313,7 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
 
     _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0], parent_tfr->x[TFR_S1], parent_tfr->x[TFR_S2], parent_tfr->x[TFR_S3], parent_tfr->x[TFR_S4]);
 
+    // TODO:
     void* parent_kernel_sp;
     void* child_kernel_sp;
     asm inline ("mv %0, sp" : "=r" (parent_kernel_sp));
@@ -320,7 +321,7 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     child_kernel_sp = child_thread->stack_base - parent_kstack_used_size;
     memcpy(child_kernel_sp, parent_kernel_sp, parent_kstack_used_size);
     
-    _thread_finish_fork(child_thread, parent_tfr);
+    _thread_finish_fork(child_thread, child_kernel_sp);
 
     if(running_thread() == child_proc->tid){
         struct trap_frame * c_tfr = (struct trap_frame *)(child_thread->stack_base) - 1;

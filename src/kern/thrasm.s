@@ -154,16 +154,12 @@ _thread_finish_fork:
 
         ld      s0, 15*8(tp)    # parent stack base
         sub     s0, s0, sp      # parent kernel size
-
-        mv tp, a0 # switch to child thread
-  #      mv sp, a1 # update child kernel stack pointer
         ld      sp, 13*8(a0)    # child stack base
         sub     sp, sp, s0      # child kernel stack
-        # s register values copy parent thread
-        # ra is the same
+        ld      s0, 0*8(tp)     # restore s0
 
-        
-       
+        mv      tp, a0  # switch to child thread
+
         ret
 
 # Statically allocated stack for the idle thread.
