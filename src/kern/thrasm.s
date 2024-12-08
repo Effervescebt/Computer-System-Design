@@ -154,6 +154,10 @@ _thread_finish_fork:
 
         mv      tp, a0
 
+        csrr    sp, sscratch
+        ld      s0, 13*8(tp)
+        csrw    sscratch, s0
+
         la      a0, _trap_entry_from_umode
         csrw    stvec, a0
 
@@ -183,7 +187,7 @@ _thread_finish_fork:
         ld      x6, 6*8(a1)     # x6 is t1
         ld      x5, 5*8(a1)     # x5 is t0
         ld      x3, 3*8(a1)     # x3 is gp
-        ld      x2, 2*8(a1)     # x2 is sp
+        
         ld      x1, 1*8(a1)     # x1 is ra
 
         ld      t6, 33*8(a1)

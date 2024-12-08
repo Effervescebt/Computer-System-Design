@@ -276,7 +276,7 @@ void memory_init(void) {
 
     // page count provided above
     union linked_page * aux_ptr = free_list; 
-    for (size_t free_pg_idx = PAGE_SIZE; free_pg_idx < page_cnt * PAGE_SIZE; free_pg_idx += PAGE_SIZE) {
+    for (size_t free_pg_idx = PAGE_SIZE; free_pg_idx < RAM_END - heap_end; free_pg_idx += PAGE_SIZE) {
         // free_list already pointing to heap_end, so start with free_list->next
         aux_ptr->next = (union linked_page *)(free_pg_idx + heap_end);
         aux_ptr = aux_ptr->next;
@@ -360,7 +360,8 @@ void * memory_alloc_page(void) {
     // Extract the head of free_list thus make it the pma to allocate
     union linked_page * physical_mem = free_list;
     free_list = free_list->next;
-
+    //kprintf("allocating mem %x\n", physical_mem);
+    sfence_vma();
     return (void*)physical_mem;
 }
 
@@ -469,6 +470,11 @@ void memory_set_range_flags (const void * vp, size_t size, uint_fast8_t rwxug_fl
  */
 void memory_unmap_and_free_user(void) {
     // Loops through all three directories for every PTE with user tag U
+    union linked_page* aux = free_list;
+    while (aux->next != NULL) {
+        aux = aux->next;
+    }
+
     struct pte* cur_active_pt2 = active_space_root();
     for (size_t pt2_idx = 0; pt2_idx < PTE_CNT; pt2_idx++) {
         if ((cur_active_pt2[pt2_idx].flags & PTE_V) != 0 && (cur_active_pt2[pt2_idx].flags & PTE_X) == 0 && (cur_active_pt2[pt2_idx].flags & PTE_R) == 0 && (cur_active_pt2[pt2_idx].flags & PTE_W) == 0) {

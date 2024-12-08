@@ -288,7 +288,7 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     stack_anchor -= 1;
     stack_anchor->thread = child_thread;
     stack_anchor->reserved = 0;
-    csrw_sscratch(stack_anchor);
+    // csrw_sscratch(stack_anchor);
 
     for (size_t tid_idx = 0; tid_idx < NTHR; tid_idx++) {
         if (thrtab[tid_idx] == NULL) {
