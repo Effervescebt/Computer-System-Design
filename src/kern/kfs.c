@@ -283,7 +283,6 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
 
     // Initialize
     lock_acquire(&flk);
-
     // read the inode blocks to get data block addr
     size_t buffer_start = inode * FS_BLKSZ + FS_BLKSZ;
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
@@ -321,10 +320,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     // write_buffer_idx is an aux parameter to determine which location in buf to write into file system memory
     size_t write_buffer_idx = 0;
 
-    // Acquire lock here and release it later
-    lock_acquire(&flk);
     // set file system memory position to where we'd start writing
     system_io->ops->ctl(system_io, IOCTL_SETPOS, &buffer_start);
+    // Acquire lock here and release it later
+    lock_acquire(&flk);
     for (int i = block_passed; i < DATA_BLOCK_NUM; i++) {
         // if compensation not zero, we have to start writing in the middentering vioblk readle of a previous read/write but not finished block
         if (leading_compensation != 0) {
@@ -349,7 +348,10 @@ long fs_write(struct io_intf* io, const void* buf, unsigned long n) {
     }
     write_position += n;
     lock_release(&flk);
+<<<<<<< HEAD
     
+=======
+>>>>>>> origin/mp3-cp3-master
     // set file position (after writing)
     ioctl(io, IOCTL_SETPOS, &write_position);
     return n;

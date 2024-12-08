@@ -23,7 +23,10 @@ ALL_TARGETS = \
 	bin/init_fib_rule30 \
 	bin/init_fib_fib \
 	bin/fib \
+<<<<<<< HEAD
 	bin/test_refcnt \
+=======
+>>>>>>> origin/mp3-cp3-master
 	bin/test_lock
 
 
@@ -59,9 +62,12 @@ bin/init_fib_rule30: $(ULIB_OBJS) init_fib_rule30.o
 bin/init_fib_fib: $(ULIB_OBJS) init_fib_fib.o
 	$(LD) -T user.ld -o $@ $^
 
+<<<<<<< HEAD
 bin/test_refcnt: $(ULIB_OBJS) test_refcnt.o
 	$(LD) -T user.ld -o $@ $^
 
+=======
+>>>>>>> origin/mp3-cp3-master
 bin/test_lock: $(ULIB_OBJS) test_lock.o
 	$(LD) -T user.ld -o $@ $^
 
