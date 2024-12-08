@@ -433,10 +433,12 @@ long vioblk_write (
         // prevent overwriting
         uint64_t pos_pre = dev->pos;
         uint64_t pos_new = sector * dev->blksz;
+        lock_release(&vlk);
         vioblk_ioctl(io, IOCTL_SETPOS, &pos_new);
         char * read_blk = kmalloc(dev->blksz);
         vioblk_read(io, read_blk, dev->blksz);
         vioblk_ioctl(io, IOCTL_SETPOS, &pos_pre);
+        lock_acquire(&vlk);
         memcpy(read_blk+ (dev->pos % dev->blksz), buf, count);
 
         // write read_blk
