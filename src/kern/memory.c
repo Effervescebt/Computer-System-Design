@@ -305,15 +305,24 @@ void memory_space_reclaim(void) {
 
     // Loops through all three directories for every PTE without global tag G
     for (size_t pt2_idx = 0; pt2_idx < PTE_CNT; pt2_idx++) {
-        if ((prev_pt2[pt2_idx].flags & PTE_V) != 0  && (prev_pt2[pt2_idx].flags & PTE_X) == 0 && (prev_pt2[pt2_idx].flags & PTE_R) == 0 && (prev_pt2[pt2_idx].flags & PTE_W) == 0) {
+
+        if ((prev_pt2[pt2_idx].flags & PTE_V) != 0  && (prev_pt2[pt2_idx].flags & PTE_X) == 0 
+            && (prev_pt2[pt2_idx].flags & PTE_R) == 0 && (prev_pt2[pt2_idx].flags & PTE_W) == 0) {
             struct pte* subdirectory_pt1 = pagenum_to_pageptr(prev_pt2[pt2_idx].ppn);
+
             for (size_t pt1_idx = 0; pt1_idx < PTE_CNT; pt1_idx++) {
-                if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
+
+                if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 
+                    && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
+
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
+
                         if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0) {
+
                             // if leaf exists and isn't global, free the page
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_G) == 0) {
+
                                 if (free_list == NULL) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                 } else {
@@ -341,7 +350,7 @@ void memory_space_reclaim(void) {
             }
         }
     }
-    // memory_free_page(prev_pt2);
+
     sfence_vma();
 }
 
@@ -360,7 +369,6 @@ void * memory_alloc_page(void) {
     // Extract the head of free_list thus make it the pma to allocate
     union linked_page * physical_mem = free_list;
     free_list = free_list->next;
-    //kprintf("allocating mem %x\n", physical_mem);
     sfence_vma();
     return (void*)physical_mem;
 }
@@ -477,15 +485,27 @@ void memory_unmap_and_free_user(void) {
 
     struct pte* cur_active_pt2 = active_space_root();
     for (size_t pt2_idx = 0; pt2_idx < PTE_CNT; pt2_idx++) {
-        if ((cur_active_pt2[pt2_idx].flags & PTE_V) != 0 && (cur_active_pt2[pt2_idx].flags & PTE_X) == 0 && (cur_active_pt2[pt2_idx].flags & PTE_R) == 0 && (cur_active_pt2[pt2_idx].flags & PTE_W) == 0) {
+
+        if ((cur_active_pt2[pt2_idx].flags & PTE_V) != 0 && (cur_active_pt2[pt2_idx].flags & PTE_X) == 0 
+            && (cur_active_pt2[pt2_idx].flags & PTE_R) == 0 && (cur_active_pt2[pt2_idx].flags & PTE_W) == 0) {
+
             struct pte* subdirectory_pt1 = pagenum_to_pageptr(cur_active_pt2[pt2_idx].ppn);
+
             for (size_t pt1_idx = 0; pt1_idx < PTE_CNT; pt1_idx++) {
-                if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
+
+                if ((subdirectory_pt1[pt1_idx].flags & PTE_V) != 0 && (subdirectory_pt1[pt1_idx].flags & PTE_X) == 0 
+                    && (subdirectory_pt1[pt1_idx].flags & PTE_R) == 0 && (subdirectory_pt1[pt1_idx].flags & PTE_W) == 0) {
+
                     struct pte* leafdirectory_pt0 = pagenum_to_pageptr(subdirectory_pt1[pt1_idx].ppn);
+
                     for (size_t pt0_idx = 0; pt0_idx < PTE_CNT; pt0_idx++) {
-                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != 0 && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
+
+                        if ((leafdirectory_pt0[pt0_idx].flags & PTE_V) != 0 && leafdirectory_pt0[pt0_idx].ppn != 0 
+                            && (leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
+
                             // if leaf exists and belongs to user, free the page
                             if ((leafdirectory_pt0[pt0_idx].flags & PTE_U) != 0) {
+
                                 if (free_list == NULL) {
                                     free_list = pagenum_to_pageptr(leafdirectory_pt0[pt0_idx].ppn);
                                 } else {
@@ -515,7 +535,6 @@ void memory_unmap_and_free_user(void) {
     }
     uintptr_t cur_mtag = ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) | pageptr_to_pagenum(cur_active_pt2);
     if (cur_mtag != main_mtag) {
-        //memory_free_page(cur_mtag);
         sfence_vma();
     }
 }
@@ -539,6 +558,10 @@ void memory_handle_page_fault(const void * vptr) {
     }
 }
 
+/* Function implemented in memory.c that should clone your memory space for current process and return the
+  mtag of the new memory space. Should be used in thread fork to user to setup the memory space for
+  the child process.
+*/
 uintptr_t memory_space_clone(uint_fast16_t asid) {
     struct pte* new_root_page_table = kmalloc(PAGE_SIZE);
     uintptr_t new_mtag = ((uintptr_t)RISCV_SATP_MODE_Sv39 << RISCV_SATP_MODE_shift) | pageptr_to_pagenum(new_root_page_table);
@@ -555,18 +578,17 @@ uintptr_t memory_space_clone(uint_fast16_t asid) {
     for (vma = USER_START_VMA; vma < USER_END_VMA; vma += PAGE_SIZE) {
         struct pte* child_leaf_pte = walk_pt(new_root_page_table, vma, CREATE_PTE);
         struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, 0);
-        // struct pte* parent_leaf_pte = walk_pt(active_space_root(), vma, CREATE_PTE);
-        if (parent_leaf_pte <= RAM_END && parent_leaf_pte >= RAM_START && (parent_leaf_pte->flags & PTE_V) != 0 && parent_leaf_pte->ppn != 0) {
+
+        if ((size_t)parent_leaf_pte <= (size_t)RAM_END && (size_t)parent_leaf_pte >= (size_t)RAM_START 
+            && (parent_leaf_pte->flags & PTE_V) != 0 && parent_leaf_pte->ppn != 0) {
             uint8_t original_flag = parent_leaf_pte->flags;
             child_leaf_pte->ppn = pageptr_to_pagenum(memory_alloc_page());
             child_leaf_pte->flags = parent_leaf_pte->flags | PTE_W | PTE_R;
             sfence_vma();
-            memory_set_page_flags(vma, original_flag | PTE_W | PTE_R);
-            sfence_vma();
-            memcpy(pagenum_to_pageptr(child_leaf_pte->ppn), vma, PAGE_SIZE);
-            sfence_vma();
+            memory_set_page_flags((void *)vma, original_flag | PTE_W | PTE_R);
+            memcpy(pagenum_to_pageptr(child_leaf_pte->ppn), (void *)vma, PAGE_SIZE);
             child_leaf_pte->flags = parent_leaf_pte->flags;
-            memory_set_page_flags(vma, original_flag);
+            memory_set_page_flags((void *)vma, original_flag);
             sfence_vma();
         }
     }

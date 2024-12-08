@@ -52,6 +52,7 @@ static inline void lock_acquire(struct lock * lk) {
     // TODO: FIXME implement this
 
     trace("%s(<%s:%p>", __func__, lk->cond.name, lk);
+    
     // Disable interrupt first
     int saved_intr_state = intr_disable();
 

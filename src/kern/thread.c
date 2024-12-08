@@ -270,10 +270,13 @@ void thread_jump_to_user(uintptr_t usp, uintptr_t upc) {
     csrw_sepc(upc);
     csrs_sstatus(RISCV_SSTATUS_SPIE);
     csrc_sstatus(RISCV_SSTATUS_SPP);
-    // console_printf("CSR initialized correctly\n");
     _thread_finish_jump(CURTHR->stack_base, usp, upc);
 }
 
+/* This function allocates new memory for the child process and sets up another thread struct. It also initializes
+  a stack anchor to reclaim the thread pointer when coming back from a U mode interrupt. The child’s memory
+  space is switched into and the thread is set to be run
+*/
 int thread_fork_to_user(struct process *child_proc, const struct trap_frame *parent_tfr) {
     
     struct thread_stack_anchor * stack_anchor;
@@ -283,13 +286,14 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     struct thread * parent_thread = (struct thread *)parent_tfr->x[TFR_TP];
     struct thread * child_thread = kmalloc(sizeof(struct thread));
 
+    // set up stack anchor
     stack_page = memory_alloc_page();
     stack_anchor = stack_page + PAGE_SIZE;
     stack_anchor -= 1;
     stack_anchor->thread = child_thread;
     stack_anchor->reserved = 0;
-    // csrw_sscratch(stack_anchor);
 
+    // add child thread to thread table
     for (size_t tid_idx = 0; tid_idx < NTHR; tid_idx++) {
         if (thrtab[tid_idx] == NULL) {
             child_proc->tid = tid_idx;
@@ -298,6 +302,7 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
         }
     }
 
+    // set ip child thread
     child_thread->id = child_proc->tid;
     child_thread->name = parent_thread->name;
     child_thread->parent = parent_thread;
@@ -305,15 +310,18 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     child_thread->stack_base = stack_anchor;
     child_thread->stack_size = child_thread->stack_base - stack_page;
 
+    // switch to child thread
     saved_intr_state = intr_disable();
     tlinsert(&ready_list, parent_thread);
     set_thread_state(parent_thread, THREAD_READY);
     set_thread_state(child_thread, THREAD_RUNNING);
     intr_restore(saved_intr_state);
 
-    _thread_setup(child_thread, child_thread->stack_base, parent_tfr->x[TFR_S11], parent_tfr->x[TFR_S0], parent_tfr->x[TFR_S1], parent_tfr->x[TFR_S2], parent_tfr->x[TFR_S3], parent_tfr->x[TFR_S4]);
+    _thread_setup(child_thread, child_thread->stack_base, (void *)parent_tfr->x[TFR_S11], 
+    (uint64_t)parent_tfr->x[TFR_S0], (uint64_t)parent_tfr->x[TFR_S1], (uint64_t)parent_tfr->x[TFR_S2], 
+    (uint64_t)parent_tfr->x[TFR_S3], (uint64_t)parent_tfr->x[TFR_S4]);
 
-    // TODO:
+    // copy trap frame from parent to children
     void* parent_kernel_sp;
     void* child_kernel_sp;
     asm inline ("mv %0, sp" : "=r" (parent_kernel_sp));
@@ -321,12 +329,8 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     child_kernel_sp = child_thread->stack_base - parent_kstack_used_size;
     memcpy(child_kernel_sp, parent_kernel_sp, parent_kstack_used_size);
     
-    _thread_finish_fork(child_thread, child_kernel_sp);
+    _thread_finish_fork(child_thread, parent_tfr);
 
-    if(running_thread() == child_proc->tid){
-        struct trap_frame * c_tfr = (struct trap_frame *)(child_thread->stack_base) - 1;
-        c_tfr->x[TFR_A0] = 0;    
-    }
     return child_proc->tid;
 }
 

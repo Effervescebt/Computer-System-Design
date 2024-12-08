@@ -22,33 +22,34 @@
 // Internal function definitions
 
 // Exits the currently running process.
+// call process_exit
 static int sysexit(void) {
     process_exit();
     return 0;
 }
 
-// Prints msg to the console.
+// Prints msg to the console. Check if the pointer passed by user program is valid
+// by calling memory_validate_vstr. 
 static int sysmsgout(const char *msg) {
     // validate string
     int result;
-
     result = memory_validate_vstr(msg, PTE_U);
-
     if (result != 0)
         return result;
 
+    // print to console
     kprintf("Thread <%s:%d> says: %s\n", thread_name(running_thread()), running_thread(), msg);
     return 0;
 }
 
 // Opens a device at the specified file descriptor and returns error code on failure.
+// Add deviceio to iotab. 
 static int sysdevopen(int fd, const char *name, int instno) {
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
@@ -58,16 +59,13 @@ static int sysdevopen(int fd, const char *name, int instno) {
             if (curproc->iotab[fd] != NULL)
                 break;
         }
-
         if (fd == MAX_OPEN_FILE_CT)
             return -ENOENT;
     }
 
     struct io_intf * device_io = curproc->iotab[fd];
 
-    // if (device_io == NULL)
-    //     return -EIO;
-
+    //open the device
     int result = device_open(&device_io, name, instno);
     curproc->iotab[fd] = device_io;
     if (result < 0)
@@ -77,13 +75,13 @@ static int sysdevopen(int fd, const char *name, int instno) {
 }
 
 // Opens a file at the specified file descriptor and returns error code on failure.
+// Add fsio to iotab. 
 static int sysfsopen(int fd, const char *name) {
     struct process * curproc = current_process();
 
     // boundary checks    
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
@@ -93,16 +91,13 @@ static int sysfsopen(int fd, const char *name) {
             if (curproc->iotab[fd] != NULL)
                 break;
         }
-
         if (fd == MAX_OPEN_FILE_CT)
             return -ENOENT;
     }
 
     struct io_intf * file_io = curproc->iotab[fd];
 
-    // if (file_io == NULL)
-    //     return -EIO;
-
+    // open the file
     int result = fs_open(name, &file_io);
     curproc->iotab[fd] = file_io;
     if (result < 0)
@@ -112,35 +107,35 @@ static int sysfsopen(int fd, const char *name) {
 }
 
 // Closes the device at the specified file descriptor.
+// Set iotab to NULL. 
 static int sysclose(int fd) {
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd <0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
     struct io_intf * io = curproc->iotab[fd];
 
+    // close the io
     if (io == NULL)
         return -EIO;
 
     io->ops->close(io);
-
     curproc->iotab[fd] = NULL;
 
     return 0;
 }
 
 // Reads from the opened file descriptor and writes bufsz bytes into buf.
+// Check if the pointer passed by the user program is valid by calling
+// memory_validate_vptr_len. 
 static long sysread(int fd, void *buf, size_t bufsz) {
     // validate buffer
     int validate_result;
-
     validate_result = memory_validate_vptr_len(buf, bufsz, PTE_U | PTE_W);
-
     if (validate_result != 0)
         return validate_result;
 
@@ -149,12 +144,12 @@ static long sysread(int fd, void *buf, size_t bufsz) {
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd <0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
     struct io_intf * io = curproc->iotab[fd];
 
+    // read the file
     if (io == NULL)
         return -EIO;
 
@@ -168,12 +163,12 @@ static long syswrite(int fd, const void *buf, size_t len) {
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
-
+        
     struct io_intf * io = curproc->iotab[fd];
 
+    // write to the file
     if (io == NULL)
         return -EIO;
 
@@ -181,13 +176,13 @@ static long syswrite(int fd, const void *buf, size_t len) {
 }
 
 // Performs desired ioctl based on cmd
+// If fd < 0, it should require the next available file descriptor
 static int sysioctl(int fd, int cmd, void *arg) {
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
@@ -204,6 +199,7 @@ static int sysioctl(int fd, int cmd, void *arg) {
 
     struct io_intf * io = curproc->iotab[fd];
 
+    // call ioctl
     if (io == NULL)
         return -EIO;
 
@@ -211,41 +207,35 @@ static int sysioctl(int fd, int cmd, void *arg) {
 }
 
 // Halts currently running user program and starts new program based on opened file at file descriptor.
+// Return the value of process_exec. 
 static int sysexec(int fd) {
     struct process * curproc = current_process();
 
     // boundary checks
     if (curproc == NULL)
         return -ENOENT;
-
     if (fd < 0 || fd >= MAX_OPEN_FILE_CT)
         return -ENOENT;
 
-    // fd < 0 require the next available file descriptor
-    // if (fd < 0) {
-    //     for (fd = 0; fd < MAX_OPEN_FILE_CT; fd++) {
-    //         if (curproc->iotab[fd] != NULL)
-    //             break;
-    //     }
-
-    //     if (fd == MAX_OPEN_FILE_CT)
-    //         return -ENOENT;
-    // }
-
     struct io_intf * exeio = curproc->iotab[fd];
 
+    // call process_exec
     if (exeio == NULL)
         return -EIO;
 
     return process_exec(exeio);
 }
 
-
+/* The fork system call duplicates the currently running process and creates a child process which starts at the
+  same point in the original or parent process. fork returns the pid of the child process to the parent process.
+  It returns 0 to the child process. It starts by allocating a new process and copying all the iotab pointers
+  from the parent to the child process.It also initializes all the reference counts.
+*/
 static int sysfork(const struct trap_frame * tfr) {
-    struct thread* parent_thr = running_thread();
     struct process* parent_proc = current_process();
     struct process* child_proc = kmalloc(sizeof(struct process));
 
+    // add child process to proctab
     size_t child_proc_initialized = 0;
     for (size_t proc_idx = 0; proc_idx < NPROC; proc_idx++) {
         if (proctab[proc_idx] == NULL) {
@@ -259,10 +249,10 @@ static int sysfork(const struct trap_frame * tfr) {
         panic("Too Many Process\n");
     }
 
-
-    // child_proc->tid = parent_proc->tid;
+    // clone the memory space
     child_proc->mtag = memory_space_clone(0);
 
+    // update reference counts
     for (size_t iotab_idx = 0; iotab_idx < PROCESS_IOMAX; iotab_idx++) {
         child_proc->iotab[iotab_idx] = parent_proc->iotab[iotab_idx];
         if (child_proc->iotab[iotab_idx] != NULL) {
@@ -287,6 +277,7 @@ static int syswait(int tid) {
 }
 
 // Sleep for us number of microseconds
+// Using alarm from timer.c. 
 static int sysusleep(unsigned long us) {
     struct alarm * al = kmalloc(sizeof(struct alarm));
     alarm_init(al, "alarm_us");
@@ -298,7 +289,7 @@ static int sysusleep(unsigned long us) {
 // Called from the usermode exception handler to handle all syscalls. Jumps to a system call based on
 // the specified system call number
 void syscall_handler(struct trap_frame * tfr) {
-    // kprintf("enter syscall handler\n");
+    // update sepc
     tfr->sepc += 4;
     int scnum = tfr->x[TFR_A7];
 

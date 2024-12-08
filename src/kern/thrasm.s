@@ -135,6 +135,10 @@ _thread_finish_jump:
         .global _thread_finish_fork
         .type   _thread_finish_fork, @function
 
+# This function begins be saving the currently running thread. Switches to the new child process thread and
+# back to the U mode interrupt handler. It then restores the ”saved” trap frame which is actually the duplicated
+# parent trap frame. Be sure to set up the return value correctly, it will be different between the child and
+# parent process. 
 _thread_finish_fork:
         # currently in the parent thread, we want to switch to child thread
         sd      s0, 0*8(tp)
@@ -152,10 +156,15 @@ _thread_finish_fork:
         sd      ra, 12*8(tp)
         sd      sp, 13*8(tp)
 
-        ld      s0, 15*8(tp)    # parent stack base
-        sub     s0, s0, sp      # parent kernel size
-        ld      sp, 13*8(a0)    # child stack base
-        sub     sp, sp, s0      # child kernel stack
+        ld      s0, 15*8(tp)    # set s0 to parent stack base
+        sub     s0, s0, sp      # set s0 to kernel size
+        ld      sp, 13*8(a0)    # set sp to child stack base
+
+        # return 0 if child process is running
+        sd      x0, -24*8(sp)   # store 0 to a0 in trap_frame
+
+        sub     sp, sp, s0      # set sp to child kernel stack
+
         ld      s0, 0*8(tp)     # restore s0
 
         mv      tp, a0  # switch to child thread
@@ -185,3 +194,4 @@ _idle_stack_anchor:
         .dword  idle_thread
         .fill   8
         .end
+        
