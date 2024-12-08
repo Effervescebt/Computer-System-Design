@@ -157,15 +157,35 @@ _thread_finish_fork:
         sd      sp, 13*8(tp)
 
         ld      s0, 15*8(tp)    # set s0 to parent stack base
-        sub     s0, s0, sp      # set s0 to kernel size
+        sub     s1, s0, sp      # set s0 to kernel size
         ld      sp, 13*8(a0)    # set sp to child stack base
+
+        addi    s2, s1, 0    # set s2 to loop index
+        addi    s3, sp, -8       # set s3 to child stack ptr
+        addi    s4, s0, -8      # set s4 to parent stack ptr
+        and     s5, s5, 0       # set s5 to temp register
+
+set_child_frame:
+
+        ld      s5, 0(s4)
+        sd      s5, 0(s3)
+        addi    s3, s3, -8
+        addi    s4, s4, -8
+
+        addi    s2, s2, -1      # decrease idx by 1
+        bgez    s2, set_child_frame
 
         # return 0 if child process is running
         sd      x0, -24*8(sp)   # store 0 to a0 in trap_frame
 
-        sub     sp, sp, s0      # set sp to child kernel stack
+        sub     sp, sp, s1      # set sp to child kernel stack
 
         ld      s0, 0*8(tp)     # restore s0
+        ld      s1, 1*8(tp)
+        ld      s2, 2*8(tp)
+        ld      s3, 3*8(tp)
+        ld      s4, 4*8(tp)
+        ld      s5, 5*8(tp)
 
         mv      tp, a0  # switch to child thread
 

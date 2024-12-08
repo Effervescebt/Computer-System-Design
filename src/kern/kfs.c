@@ -29,7 +29,6 @@ int fs_mount(struct io_intf* io) {
     system_io = io;
     // Initialize lock
     lock_init(&flk, "filesystem_lock");
-    console_printf("lock initialized successfully in fs_mount\n");
     // read the first FS_BLKSZ length data, which is the boot_block we need, into the global boot_block
     long read_result = ioread_full(io, &super_block, FS_BLKSZ);
     if (read_result < 0) {

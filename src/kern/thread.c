@@ -321,14 +321,6 @@ int thread_fork_to_user(struct process *child_proc, const struct trap_frame *par
     (uint64_t)parent_tfr->x[TFR_S0], (uint64_t)parent_tfr->x[TFR_S1], (uint64_t)parent_tfr->x[TFR_S2], 
     (uint64_t)parent_tfr->x[TFR_S3], (uint64_t)parent_tfr->x[TFR_S4]);
 
-    // copy trap frame from parent to children
-    void* parent_kernel_sp;
-    void* child_kernel_sp;
-    asm inline ("mv %0, sp" : "=r" (parent_kernel_sp));
-    uint64_t parent_kstack_used_size = CURTHR->stack_base - parent_kernel_sp;
-    child_kernel_sp = child_thread->stack_base - parent_kstack_used_size;
-    memcpy(child_kernel_sp, parent_kernel_sp, parent_kstack_used_size);
-    
     _thread_finish_fork(child_thread, parent_tfr);
 
     return child_proc->tid;
