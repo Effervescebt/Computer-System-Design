@@ -10,7 +10,7 @@ didn't set R/W flags before reading elf contents, modified and entered next step
 III. Process_exit didn't call reclaim
 ->mark as solved
 
-***
+*** time consuming bug
 IV. User free freed wrong pages, if statements didn't function.
 ->mark as solved
 issue was in bitwise operands. == probably fired earlier than & and |. Added parentheses to all judgements and passed

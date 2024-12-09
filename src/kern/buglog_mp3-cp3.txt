@@ -1,0 +1,50 @@
+Dec.7 Sat
+I
+ISSUE: Access fault at beginning of program
+mark as solved -> previously wrote "struct process* child_proc = kmalloc(sizeof(struct process*));", allocating a pointer.
+
+II
+ISSUE: Store page fault in memory clone
+mark as solved -> Contains two bugs
+    -> If statement not sufficient to determine whether a page should be deep copied, previously judging NULL. Adjusted to the current version
+    -> Didn't set R/W flags for parent pages and child pages, thus memcpy cannot be executed
+
+III 
+ISSUE: Lock issue, program stuck
+mark as solved -> didn't release before next acquire, thus program stuck
+    -> add lock to fsopen & vioblkopen; release before ioctl/ioread/iowrite inside fs and vioblk functions
+    some others continued to Dec.8
+
+IV
+ISSUE: Program stuck after sysfork
+mark as solved -> didn't add break statements after sysfork, sysusleep, and syswait cases, thus program kept sleeping
+
+Dec.8 Sun --Darkest Day Ever---
+
+*** time consuming bug
+ISSUE: fibfib exits after 20~30 msgout, with error message from either memory_alloc_page (saying no free page available)
+or memory_handle_page_fault (saying instruction page fault at 0x0); Tried using GDB but stval & scause changed to exception
+ADDITIONAL FAULT: some minor changes in ra and sp results in thread assertion and other nullptrs
+with no clue.
+mark as solved -> Issue caused by more than one bug, from _trap_entry_from_umode & fork functions
+    -> inside fork: Implementational fault. 
+    (1) Lecture slides mentioned "use sret in _thread_finish_fork", yet doing so doesn't return the 0 in child thread, 
+    sret brings thread directly back to user. No distinct return between child and parent results in openfault 
+    (both process open the same device). Fixed it to ret, then it'll return to thread_fork_to_user.
+    (2) We previously set the child's trap frame as a direct copy of the parent's, yet we only load things to the registers
+    not the stack. Doing so results in a completely empty child process stack (except for the values set in _thread_setup),
+    thus the child trap_frame is empty (tip: trap frame allocated on stack and occupies 34*8 bytes). A fix to this was by
+    copying everything currently on the parent thread stack (from ksp of parent to stack_base of parent, starts from stack_base
+    in assembly) to the child thread stack (starts from stack_base, which is the 15*8 entry in thread* child_thread). Also
+    we didn't set sp to the real child thread stack, fixed in thrasm.s. Besides, not restoring s0 after using it as a temp
+    register resulted in instruction fault. The loop to set child trap frame had no issue, lucky.
+    -> inside trap: Minor mistake
+    Was previously  # csrrw    sp, sscratch, sp    # sp points to thread_stack_anchor
+                    # addi    sp, sp, -34*8   # allocate space for trap frame
+                    # sd      t6, 31*8(sp)    # save t6 (x31) in trap frame
+                    # ld      t6, 34*8(sp)    # save original sp in trap frame <== ISSUE HERE
+                    # sd      t6, 2*8(sp)     #
+    This sp was already switched with sscratch, so its now the ksp, while usp stored in sscratch. Our later data stored on stack
+    all went to the ksp, while ksp had limited space (reason for instruction fault and access fault).
+    
+    
