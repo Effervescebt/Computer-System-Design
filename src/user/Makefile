@@ -65,5 +65,20 @@ bin/test_refcnt: $(ULIB_OBJS) test_refcnt.o
 bin/test_lock: $(ULIB_OBJS) test_lock.o
 	$(LD) -T user.ld -o $@ $^
 
+bin/greeting: $(ULIB_OBJS) greeting.o
+	$(LD) -T user.ld -o $@ $^
+
+bin/cat: $(ULIB_OBJS) cat.o
+	$(LD) -T user.ld -o $@ $^
+
+bin/test_syscall: $(ULIB_OBJS) test_syscall.o
+	$(LD) -T user.ld -o $@ $^
+
+bin/user_access_kern: $(ULIB_OBJS) user_access_kern.o
+	$(LD) -T user.ld -o $@ $^
+
+bin/syscall_ioctl: $(ULIB_OBJS) syscall_ioctl.o
+	$(LD) -T user.ld -o $@ $^
+
 clean:
 	rm -rf *.o *.elf *.asm $(ALL_TARGETS)

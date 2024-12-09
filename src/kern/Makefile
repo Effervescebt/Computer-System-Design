@@ -65,6 +65,52 @@ run-kernel: kernel.elf
 debug-kernel: kernel.elf
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
 
+mem_test_buggy.elf: $(CORE_OBJS) virt_memory_bugtest.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-buggy: mem_test_buggy.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug-buggy: mem_test_buggy.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+mem_test.elf: $(CORE_OBJS) virt_memory_test.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-mem_test: mem_test.elf
+	$(QEMU) $(QEMUOPTS)
+
+# test vioblk
+vioblk_test.elf: $(CORE_OBJS) vioblk_test.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run-vioblk_test: vioblk_test.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug-vioblk_test: vioblk_test.elf
+	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB)
+
+# test file system
+test_fs.elf: $(CORE_OBJS) test_fs.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run_test_fs: test_fs.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug_test_fs: test_fs.elf
+	$(QEMU) $(QEMUOPTS) -s -S
+
+# test elf_load
+test_elf.elf: $(CORE_OBJS) test_elf.o companion.o
+	$(LD) -T kernel.ld -o $@ $^
+
+run_test_elf: test_elf.elf
+	$(QEMU) $(QEMUOPTS)
+
+debug_test_elf: test_elf.elf
+	$(QEMU) $(QEMUOPTS) -s -S
+
+
 clean:
 	if [ -f companion.o ]; then cp companion.o companion.o.save; fi
 	rm -rf *.o *.elf *.asm

@@ -1,22 +1,22 @@
 Dec.7 Sat
 I
-ISSUE: Access fault at beginning of program
+ISSUE: Access fault at beginning of program (sysfork)
 mark as solved -> previously wrote "struct process* child_proc = kmalloc(sizeof(struct process*));", allocating a pointer.
 
 II
-ISSUE: Store page fault in memory clone
+ISSUE: Store page fault in memory clone (memory_space_clone)
 mark as solved -> Contains two bugs
     -> If statement not sufficient to determine whether a page should be deep copied, previously judging NULL. Adjusted to the current version
     -> Didn't set R/W flags for parent pages and child pages, thus memcpy cannot be executed
 
 III 
-ISSUE: Lock issue, program stuck
+ISSUE: Lock issue, program stuck (kfs vioblk)
 mark as solved -> didn't release before next acquire, thus program stuck
     -> add lock to fsopen & vioblkopen; release before ioctl/ioread/iowrite inside fs and vioblk functions
     some others continued to Dec.8
 
 IV
-ISSUE: Program stuck after sysfork
+ISSUE: Program stuck after sysfork (syscall_handler)
 mark as solved -> didn't add break statements after sysfork, sysusleep, and syswait cases, thus program kept sleeping
 
 Dec.8 Sun --Darkest Day Ever---

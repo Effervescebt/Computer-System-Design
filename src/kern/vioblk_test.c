@@ -17,8 +17,6 @@
 //           end of kernel image (defined in kernel.ld)
 extern char _kimg_end[];
 
-#define RAM_SIZE (8*1024*1024)
-#define RAM_START 0x80000000UL
 #define KERN_START RAM_START
 #define USER_START 0x80100000UL
 

@@ -11,7 +11,7 @@ void main(void) {
     size_t size;
 
     // open a file
-    result = _fsopen(0, "test_refcnt_file.txt");
+    result = _fsopen(0, "test_lock_file.txt");
     if (result < 0) {
         _msgout("_fsopen failed");
         _exit();
