@@ -1,0 +1,1 @@
+memory_validate_vptr_len in memory.c
