@@ -9,7 +9,7 @@
 #define DEBUG
 #endif
 
-#define INIT_PROC "syscall_ioctl" // name of init process executable
+#define INIT_PROC "init_trek_rule30" // name of init process executable
 
 #include "console.h"
 #include "thread.h"
