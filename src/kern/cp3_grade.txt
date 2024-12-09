@@ -1,0 +1,15 @@
+user programs: user/test_refcnt, user/test_lock
+
+kfs.raw: the file system image
+    make kfs.raw: bash create_kfs_raw.sh
+
+user/test_refcnt: test the reference count implementation
+    executable name in kfs.raw: test_refcnt
+    run the program: change INIT_PROC to test_refcnt in kern/main.c
+
+user/test_lock: test the lock implementation
+    executable name in kfs.raw: test_lock
+    run the program: change INIT_PROC to test_lock in kern/main.c
+
+make and run the programs:
+    bash remake_and_rerun.sh
